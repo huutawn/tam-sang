@@ -1,0 +1,40 @@
+[project]
+name = "ai-service"
+version = "1.0.0"
+description = "AI Service for KYC OCR Processing"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "kafka-python>=2.0.2",
+    "requests>=2.31.0",
+    "Pillow>=10.2.0",
+    "pytesseract>=0.3.10",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+    "pydantic-settings>=2.1.0",
+    # Proof Verification Dependencies
+    "imagehash>=4.3.1",
+    "deepface>=0.0.79",
+    "google-generativeai>=0.3.0",
+    "tf-keras>=2.15.0",
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "black>=23.12.0",
+    "ruff>=0.1.9",
+]

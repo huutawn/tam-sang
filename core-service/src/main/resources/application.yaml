@@ -1,0 +1,73 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: core-service
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  
+  # PostgreSQL Configuration (Transaction Database)
+  datasource:
+    url: jdbc:postgresql://localhost:5432/transaction
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: tamsangpswd
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  # MongoDB Configuration
+  data:
+    mongodb:
+      uri: mongodb://admin:password123@localhost:27017/tamsang?authSource=admin
+      database: tamsang
+  
+  # Redis Configuration
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+
+# PayOS Configuration
+payos:
+  client-id: ${PAYOS_CLIENT_ID}
+  api-key: ${PAYOS_API_KEY}
+  checksum-key: ${PAYOS_CHECKSUM_KEY}
+  base-url: https://api-merchant.payos.vn
+
+# JWT Public Key (from config-server for authentication)
+jwt:
+  public-key: ${JWT_PUBLIC_KEY}
+
+# Eureka Client Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Logging
+logging:
+  level:
+    com.nht.core_service: DEBUG
+    org.springframework.data.mongodb: DEBUG
+    org.springframework.data.redis: DEBUG
+secret-key: ${SECRET_KEY}

@@ -1,0 +1,28 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: identity-service
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  datasource:
+    url: jdbc:postgresql://localhost:5432/idt
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: idtpswd
+
+jwt:
+  private-key: ${PRIVATE_KEY}
+  public-key: |
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlOXpVw0DectY9hNiMLdg
+    3mzBcOHlhY2VTBB6WunJg+C0kzxdBj/fNjOZVsbV6miu9sBI2VlZMlA7Jd3RvvtK
+    0WKdWh5fDUKhMmgQogHpCjCKRd4acfBNJBO7EHoAQmjT8v96Xa6VmowjBdsUldbt
+    40n+r55DJLQsvLJE64ietlgB9rCEyXdkPU2xioWMFusKk8xikF+kryXSeA2KdoG7
+    SqliHEuuDbI+Lve4t2nWs7SFsvQru/Y1wdw4qDG03UKXWPZ+x/fxYlnwnj4/XZfT
+    Rs2QAKidfyTRXkV41PfZQwXYKEPU5sBK6/2K1BPeX7VEB+ts8XkqEx3LCu+/GUjU
+    MwIDAQAB
+    -----END PUBLIC KEY-----
+  valid-duration: 7200
+  refreshable-duration: 72000

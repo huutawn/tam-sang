@@ -1,0 +1,37 @@
+# Minio Configuration
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-name: file-service-bucket
+  region: us-east-1
+  max-file-size: 52428800 # 50MB in bytes
+  presigned-url-expiry: 3600 # 1 hour in seconds
+
+# File Upload Constraints
+upload:
+  allowed-mime-types:
+    - image/jpeg
+    - image/png
+    - image/gif
+    - image/webp
+    - application/pdf
+    - text/plain
+    - application/msword
+    - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    - application/vnd.ms-excel
+    - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+# Security Settings
+security:
+  cors-allowed-origins:
+    - http://localhost:3000
+    - http://localhost:8080
+  rate-limit:
+    requests: 100
+    duration: 60 # seconds
+
+# Logging Configuration
+logging:
+  level: info # debug, info, warn, error
+  format: json # json or console

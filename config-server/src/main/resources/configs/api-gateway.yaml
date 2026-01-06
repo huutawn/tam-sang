@@ -1,0 +1,6 @@
+# API Gateway Configuration
+# This file contains all configuration for api-gateway
+# Loaded by Config Server
+
+# Add gateway-specific configurations here if needed
+# For now, gateway uses mostly default configurations
