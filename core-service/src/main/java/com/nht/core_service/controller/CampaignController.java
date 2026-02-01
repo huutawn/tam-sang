@@ -5,6 +5,7 @@ import com.nht.core_service.dto.response.PageResponse;
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.nht.core_service.document.Campaign;
@@ -22,6 +23,7 @@ public class CampaignController {
 
 	private final CampaignService campaignService;
 
+	@PreAuthorize("isAuthenticated()")
 	@PostMapping
 	public ResponseEntity<ApiResponse<Campaign>> createCampaign(@Valid @RequestBody CreateCampaignRequest request) {
 		Campaign campaign = campaignService.createCampaign(request);
@@ -35,12 +37,13 @@ public class CampaignController {
 		return ResponseEntity.ok(response);
 	}
 
+
 	@GetMapping("/{id}")
 	public ResponseEntity<ApiResponse<CampaignResponse>> getCampaign(@PathVariable String id) {
 		CampaignResponse response = campaignService.getCampaignById(id);
 		return ResponseEntity.ok(new ApiResponse<>("Campaign retrieved successfully", response));
 	}
-
+	@PreAuthorize("hasRole('ADMIN')")
 	@PostMapping("/{id}/close")
 	public ResponseEntity<ApiResponse<Void>> closeCampaign(@PathVariable String id) {
 		campaignService.closeCampaign(id);

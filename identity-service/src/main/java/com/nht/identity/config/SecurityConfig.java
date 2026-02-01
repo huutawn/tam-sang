@@ -20,6 +20,7 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
         "/users",
+        "/users/**",
         "/auth/token",
         "/auth/introspect",
         "/auth/logout",
@@ -36,7 +37,8 @@ public class SecurityConfig {
         "/auth/outbound/authentication",
         "/products/search",
         "hooks/**",
-        "/users/{userId}/kyc-status"
+        "/users/{userId}/kyc-status",
+        "/users/exist"
     };
 
     private final CustomJwtDecoder customJwtDecoder;

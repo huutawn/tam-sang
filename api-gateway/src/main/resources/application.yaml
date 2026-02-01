@@ -1,6 +1,5 @@
 server:
   port: 8080
-
 spring:
   application:
     name: api-gateway
@@ -9,20 +8,14 @@ spring:
       discovery:
         locator:
           enabled: true
-#      routes:
-#        - id: identity-service
-#          uri: lb://IDENTITY-SERVICE # "lb" = Load Balancer. Nó sẽ hỏi Eureka: "Thằng IDENTITY-SERVICE ở đâu?"
-#          predicates:
-#            - Path=/identity/** # Nếu request bắt đầu bằng /identity/... thì đẩy sang service kia
-#          filters:
-#            - StripPrefix=1 # Loại bỏ /identity khỏi path trước khi forward. VD: /identity/users -> /users
+
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/ # Khai báo địa chỉ của Eureka Server để kết nối
-    registry-fetch-interval-seconds: 5 # Refresh danh sách services mỗi 5 giây (default: 30s)
-    instance-info-replication-interval-seconds: 5 # Cập nhật thông tin instance mỗi 5 giây
+      defaultZone: http://localhost:8761/eureka/
+    registry-fetch-interval-seconds: 5
+    instance-info-replication-interval-seconds: 5
   instance:
-    lease-renewal-interval-in-seconds: 5 # Gửi heartbeat mỗi 5 giây (default: 30s)
-    lease-expiration-duration-in-seconds: 10 # Eureka sẽ xóa instance sau 10s không nhận heartbeat (default: 90s)
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10

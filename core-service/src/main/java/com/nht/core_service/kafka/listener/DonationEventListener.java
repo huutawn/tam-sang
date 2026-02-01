@@ -1,7 +1,9 @@
 package com.nht.core_service.kafka.listener;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
+import com.nht.core_service.repository.mongodb.ProcessEventRepository;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -32,11 +34,14 @@ public class DonationEventListener {
 	private final CampaignRepository campaignRepository;
 	private final DonationRepository donationRepository;
 	private final WebSocketService webSocketService;
-
+	private final ProcessEventRepository processEventRepository;
 	@KafkaListener(topics = KafkaTopicConfig.DONATION_EVENTS_TOPIC, groupId = "core-service-group")
 	public void handleDonationEvent(DonationEvent event) {
 		log.info("Received donation event: campaignId={}, amount={}", event.campaignId(), event.amount());
-
+		if(processEventRepository.existsById(event.donationId().toString())) {
+			log.warn("Event already processed, skipping: {}", event.donationId());
+			return;
+		}
 		try {
 			// Task 1: Update MongoDB Campaign.currentAmount atomically
 			updateMongoCampaignAmount(event);
@@ -50,6 +55,7 @@ public class DonationEventListener {
 		} catch (Exception e) {
 			log.error("Error processing donation event: {}", event, e);
 		}
+		processEventRepository.save(new com.nht.core_service.document.ProcessEvent(event.donationId().toString(), LocalDateTime.now()));
 	}
 
 	private void updateMongoCampaignAmount(DonationEvent event) {

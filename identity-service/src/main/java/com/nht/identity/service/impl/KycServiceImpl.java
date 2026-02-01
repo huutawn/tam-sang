@@ -1,6 +1,7 @@
 package com.nht.identity.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,8 +13,10 @@ import com.nht.identity.client.dto.FileUploadResponse;
 import com.nht.identity.dto.event.KycInitiatedEvent;
 import com.nht.identity.dto.response.KycProfileResponse;
 import com.nht.identity.dto.response.KycSubmitResponse;
+import com.nht.identity.dto.response.ValidKycResponse;
 import com.nht.identity.entity.KycProfile;
 import com.nht.identity.entity.KycStatus;
+import com.nht.identity.entity.User;
 import com.nht.identity.exception.AppException;
 import com.nht.identity.exception.ErrorCode;
 import com.nht.identity.kafka.producer.KycEventProducer;
@@ -103,6 +106,40 @@ public class KycServiceImpl implements KycService {
                 kycProfileRepository.findByUserId(userId).orElseThrow(() -> new AppException(ErrorCode.KYC_NOT_FOUND));
 
         return mapToResponse(kycProfile);
+    }
+
+    @Override
+    public ValidKycResponse validKyc(String userId) {
+        Optional<User> user = userRepository.findById(userId);
+        if (user.isEmpty()) {
+            return ValidKycResponse.builder()
+                    .isValid(false)
+                    .isError(true)
+                    .status("User not found")
+                    .message("User not found")
+                    .build();
+        } else {
+
+            if (user.get().getKycProfile() == null) {
+                return ValidKycResponse.builder()
+                        .isValid(false)
+                        .isError(true)
+                        .status("not have Kyc")
+                        .build();
+            } else if (!user.get().getKycStatus().equals(KycStatus.APPROVED)) {
+                return ValidKycResponse.builder()
+                        .isError(true)
+                        .isValid(false)
+                        .status("Kyc not approved")
+                        .build();
+            }
+        }
+        return ValidKycResponse.builder()
+                .isError(false)
+                .isValid(true)
+                .userId(userId)
+                .status("Kyc approved")
+                .build();
     }
 
     private KycProfileResponse mapToResponse(KycProfile kycProfile) {

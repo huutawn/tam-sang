@@ -9,15 +9,15 @@ spring:
   
   # PostgreSQL Configuration (Transaction Database)
   datasource:
-    url: jdbc:postgresql://localhost:5432/transaction
+    jdbc-url: jdbc:postgresql://localhost:5432/transaction
     driver-class-name: org.postgresql.Driver
     username: postgres
-    password: tamsangpswd
+    password: ${POSTGRES_PW}
   
   jpa:
     hibernate:
-      ddl-auto: validate
-    show-sql: false
+      ddl-auto: update
+    show-sql: true
     properties:
       hibernate:
         format_sql: true
@@ -26,7 +26,7 @@ spring:
   # MongoDB Configuration
   data:
     mongodb:
-      uri: mongodb://admin:password123@localhost:27017/tamsang?authSource=admin
+      uri: ${MONGODB_URI}
       database: tamsang
   
   # Redis Configuration

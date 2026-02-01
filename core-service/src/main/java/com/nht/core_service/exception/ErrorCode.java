@@ -9,7 +9,7 @@ import lombok.Getter;
 public enum ErrorCode {
 	UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
 	INVALID_KEY(1001, "Invalid request", HttpStatus.BAD_REQUEST),
-
+	USER_NOT_FOUND(1002,"user not found",HttpStatus.NOT_FOUND),
 	// Campaign errors (2000-2099)
 	CAMPAIGN_NOT_FOUND(2001, "Campaign not found", HttpStatus.NOT_FOUND),
 	CAMPAIGN_CREATION_FAILED(2002, "Failed to create campaign", HttpStatus.INTERNAL_SERVER_ERROR),
@@ -28,6 +28,8 @@ public enum ErrorCode {
 	INVALID_DONATION_AMOUNT(2203, "Donation amount must be greater than zero", HttpStatus.BAD_REQUEST),
 	PAYMENT_FAILED(2204, "Payment failed", HttpStatus.BAD_REQUEST), // Added
 	PAYMENT_NOT_FOUND(2205, "Payment not found", HttpStatus.NOT_FOUND), // Added
+	DONATION_EXCEEDS_TARGET(2206,"donation excess_target",HttpStatus.BAD_REQUEST),
+
 
 	// Withdrawal errors (2300-2399)
 	WITHDRAWAL_NOT_FOUND(2301, "Withdrawal request not found", HttpStatus.NOT_FOUND),
@@ -48,7 +50,15 @@ public enum ErrorCode {
 	// Auth errors (1000-1099)
 	UNAUTHENTICATED(1006, "Unauthenticated", HttpStatus.UNAUTHORIZED),
 	UNAUTHORIZED(1007, "You do not have permission", HttpStatus.FORBIDDEN),
-	INVALID_STATUS(1008,"invalid status" ,HttpStatus.BAD_REQUEST );
+	INVALID_STATUS(1008, "invalid status", HttpStatus.BAD_REQUEST),
+
+	// KYC errors (4000-4099)
+	KYC_NOT_VERIFIED(4001, "User has not completed KYC verification", HttpStatus.BAD_REQUEST),
+	KYC_VALIDATION_FAILED(4002, "Failed to validate KYC status", HttpStatus.INTERNAL_SERVER_ERROR),
+
+	// Blockchain integration errors (4100-4199)
+	WALLET_CREATION_FAILED(4101, "Failed to create wallet in blockchain service", HttpStatus.INTERNAL_SERVER_ERROR),
+	WALLET_DELETION_FAILED(4102, "Failed to delete wallet for rollback", HttpStatus.INTERNAL_SERVER_ERROR);
 
 	ErrorCode(int code, String message, HttpStatusCode statusCode) {
 		this.code = code;

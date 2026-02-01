@@ -2,6 +2,7 @@ package com.nht.identity.service;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.nht.identity.constant.PredefindRole;
 import com.nht.identity.dto.request.UserCreationRequest;
 import com.nht.identity.dto.request.UserUpdateRequest;
+import com.nht.identity.dto.response.UserExistResponse;
 import com.nht.identity.dto.response.UserResponse;
 import com.nht.identity.entity.KycStatus;
 import com.nht.identity.entity.Role;
@@ -91,6 +93,15 @@ public class UserService {
     public UserResponse getUser(String id) {
         return userMapper.toUserResponse(
                 userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED)));
+    }
+
+    public UserExistResponse isUserExist(String userEmail) {
+        Optional<User> user = userRepository.findByEmail(userEmail);
+        if (user.isPresent()) {
+            return new UserExistResponse(user.get().getId(), true);
+        } else {
+            return new UserExistResponse(null, false);
+        }
     }
 
     /**

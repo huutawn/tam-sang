@@ -4,11 +4,13 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.nht.identity.dto.request.UserCreationRequest;
 import com.nht.identity.dto.response.ApiResponse;
 import com.nht.identity.dto.response.KycStatusResponse;
+import com.nht.identity.dto.response.UserExistResponse;
 import com.nht.identity.dto.response.UserResponse;
 import com.nht.identity.service.UserService;
 
@@ -33,6 +35,7 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<UserResponse>> getAll() {
         List<UserResponse> result = userService.getUsers();
         return new ApiResponse<>(1000, null, result);
@@ -49,5 +52,11 @@ public class UserController {
     public ApiResponse<KycStatusResponse> checkKycStatus(@PathVariable String userId) {
         boolean verified = userService.isUserKycVerified(userId);
         return new ApiResponse<>(1000, null, new KycStatusResponse(verified));
+    }
+
+    @GetMapping("/exist")
+    public ApiResponse<UserExistResponse> checkExist(@RequestParam String userEmail) {
+        UserExistResponse existed = userService.isUserExist(userEmail);
+        return new ApiResponse<>(1000, null, existed);
     }
 }

@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 import vn.payos.type.CheckoutResponseData;
 
 @RestController
-@RequestMapping("/api/v1/donations")
+@RequestMapping("/donations")
 @RequiredArgsConstructor
 public class DonationController {
 

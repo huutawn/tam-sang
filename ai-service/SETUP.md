@@ -12,7 +12,7 @@ cp .env.example .env
 Sau đó mở file `.env` và cập nhật Gemini API key:
 
 ```env
-GEMINI_API_KEY=AIzaSyDuoij0mAvPqiTpxlS2sIfjqxdU3RCFu_c
+GEMINI_API_KEY=
 ENABLE_GEMINI_MOCK=false
 ```
 

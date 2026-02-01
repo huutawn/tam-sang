@@ -2,5 +2,17 @@
 # This file contains all configuration for api-gateway
 # Loaded by Config Server
 
+spring:
+  cloud:
+    loadbalancer:
+      cache:
+        enabled: false  # Disable cache to always get fresh instances
+      ribbon:
+        enabled: false
+    gateway:
+      httpclient:
+        connect-timeout: 1000
+        response-timeout: 5s
+
 # Add gateway-specific configurations here if needed
 # For now, gateway uses mostly default configurations

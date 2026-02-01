@@ -14,8 +14,13 @@ class ExtractedKycData(BaseModel):
     fullName: str
     dob: str
     idNumber: str
-    idType: str
+    idType: str  # CITIZEN_ID, OLD_ID_CARD
     address: str
+    gender: str = ""           # Nam/Nữ
+    nationality: str = ""      # Quốc tịch
+    placeOfOrigin: str = ""    # Quê quán
+    issueDate: str = ""        # Ngày cấp
+    expiryDate: str = ""       # Ngày hết hạn
 
 
 class KycAnalyzedEvent(BaseModel):

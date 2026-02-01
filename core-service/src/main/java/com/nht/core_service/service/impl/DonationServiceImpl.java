@@ -2,11 +2,9 @@ package com.nht.core_service.service.impl;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.nht.core_service.config.PayOSConfig;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -18,7 +16,6 @@ import com.nht.core_service.document.Campaign;
 import com.nht.core_service.dto.event.DonationEvent;
 import com.nht.core_service.dto.request.InitDonationRequest;
 import com.nht.core_service.dto.request.PaymentWebhookRequest;
-import com.nht.core_service.dto.response.InitDonationResponse;
 import com.nht.core_service.entity.Donation;
 import com.nht.core_service.entity.Transaction;
 import com.nht.core_service.entity.Wallet;
@@ -45,13 +42,11 @@ import vn.payos.type.PaymentData;
 public class DonationServiceImpl implements DonationService {
 
 	private final DonationRepository donationRepository;
-	private final TransactionRepository transactionRepository;
 	private final CampaignRepository campaignRepository;
-	private final WalletService walletService;
 	private final KafkaTemplate<String, Object> kafkaTemplate;
 	private final PayOS payOS;
-	@Value("${secret.key}")
-	private final String secretKey;
+	@Value("${secret-key}")
+	private String secretKey;
 	private static final String BANK_ID = "970422"; // VietQR MB Bank
 	private static final String ACCOUNT_NO = "0962974546"; // Example account
 	private static final String ACCOUNT_NAME = "TAM SANG CHARITY";
@@ -63,7 +58,11 @@ public class DonationServiceImpl implements DonationService {
 		Campaign campaign = campaignRepository
 				.findById(request.campaignId())
 				.orElseThrow(() -> new AppException(ErrorCode.CAMPAIGN_NOT_FOUND));
-
+		BigDecimal remaining = campaign.getTargetAmount().subtract(campaign.getCurrentAmount());
+		BigDecimal amount = request.amount();
+		if (request.amount().compareTo(remaining) > 0) {
+			amount=remaining;
+		}
 		// Generate unique payment code
 		String paymentCode = generatePaymentCode();
 
@@ -71,7 +70,7 @@ public class DonationServiceImpl implements DonationService {
 		Donation donation = Donation.builder()
 				.campaignId(request.campaignId())
 				.donorFullName(request.donorName())
-				.amount(request.amount())
+				.amount(amount)
 				.content(request.message())
 				.paymentCode(paymentCode)
 				.paymentMethod("BANK_TRANSFER")
@@ -84,7 +83,7 @@ public class DonationServiceImpl implements DonationService {
 		// Generate VietQR URL
 		PaymentData paymentData = PaymentData.builder()
 				.orderCode(System.currentTimeMillis())
-				.amount(Integer.parseInt(request.amount().toString()))
+				.amount(Integer.parseInt(amount.toString()))
 				.description(request.message())
 				.returnUrl("http://localhost:3000/success") // URL khi khách trả tiền xong
 				.cancelUrl("http://localhost:3000/cancel") //
@@ -147,7 +146,7 @@ public class DonationServiceImpl implements DonationService {
 				.description("Donation from " + donation.getDonorFullName())
 				.timestamp(LocalDateTime.now())
 				.build();
-		Optional<Transaction> firstTransaction = transactionRepository.findTopByOrderByCreatedAtDesc();
+		Optional<Transaction> firstTransaction = transactionRepository.findTopByOrderByTimestampDesc();
 
 		if(firstTransaction.isEmpty()){
 			transaction.setPreviousHash("firsHash1290034u1dbf");
@@ -168,7 +167,7 @@ public class DonationServiceImpl implements DonationService {
 		donationRepository.save(donation);
 
 		// Publish event to Kafka
-		DonationEvent event = new DonationEvent(
+		DonationEvent event = new DonationEvent(donation.getId(),
 				donation.getCampaignId(), donation.getAmount(), donation.getDonorFullName(), donation.getContent());
 
 		kafkaTemplate.send(KafkaTopicConfig.DONATION_EVENTS_TOPIC, event);

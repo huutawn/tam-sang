@@ -10,13 +10,14 @@ import org.springframework.web.multipart.MultipartFile;
 import com.nht.identity.client.dto.ApiResponse;
 import com.nht.identity.dto.response.KycProfileResponse;
 import com.nht.identity.dto.response.KycSubmitResponse;
+import com.nht.identity.dto.response.ValidKycResponse;
 import com.nht.identity.service.KycService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/api/v1/kyc")
+@RequestMapping("kyc")
 @RequiredArgsConstructor
 @Slf4j
 public class KycController {
@@ -52,10 +53,19 @@ public class KycController {
                 .build();
     }
 
+    @GetMapping("/valid/{userId}")
+    public ApiResponse<ValidKycResponse> validKyc(@PathVariable String userId) {
+        log.info("Received request to get KYC profile for userId: {}", userId);
+        ValidKycResponse response = kycService.validKyc(userId);
+        return ApiResponse.<ValidKycResponse>builder()
+                .code(1000)
+                .result(response)
+                .build();
+    }
+
     @GetMapping("/user/{userId}")
     public ApiResponse<KycProfileResponse> getKycProfileByUserId(@PathVariable String userId) {
         log.info("Received request to get KYC profile for userId: {}", userId);
-
         KycProfileResponse response = kycService.getKycProfileByUserId(userId);
 
         return ApiResponse.<KycProfileResponse>builder()

@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/api/v1/proofs")
+@RequestMapping("/proofs")
 @RequiredArgsConstructor
 @Slf4j
 public class ProofController {
@@ -36,9 +36,7 @@ public class ProofController {
 		
 		ProofResponse response = proofService.uploadProof(withdrawalRequestId, imageUrl, description);
 		
-		return ResponseEntity.ok(ApiResponse.<ProofResponse>builder()
-			.result(response)
-			.build());
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Proof uploaded successfully", response));
 	}
 	
 	@GetMapping("/{id}")
@@ -47,9 +45,7 @@ public class ProofController {
 	) {
 		log.info("Getting proof: {}", id);
 		ProofResponse response = proofService.getProofById(id);
-		return ResponseEntity.ok(ApiResponse.<ProofResponse>builder()
-			.result(response)
-			.build());
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Proof retrieved successfully", response));
 	}
 	
 	@GetMapping
@@ -58,8 +54,6 @@ public class ProofController {
 	) {
 		log.info("Getting proofs for withdrawal: {}", withdrawalId);
 		List<ProofResponse> proofs = proofService.getProofsByWithdrawalId(withdrawalId);
-		return ResponseEntity.ok(ApiResponse.<List<ProofResponse>>builder()
-			.result(proofs)
-			.build());
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Proofs retrieved successfully", proofs));
 	}
 }

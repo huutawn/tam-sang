@@ -1,5 +1,6 @@
 package com.nht.core_service.service.impl;
 
+import com.mongodb.client.result.UpdateResult;
 import com.nht.core_service.document.Campaign;
 import com.nht.core_service.document.WithdrawalRequest;
 import com.nht.core_service.dto.request.CreateWithdrawalRequest;
@@ -16,7 +17,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -26,41 +32,34 @@ import java.util.List;
 public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
     private final WithdrawalRequestRepository withdrawalRequestRepository;
     private final CampaignRepository campaignRepository;
+    private final MongoTemplate mongoTemplate;
     @Override
+    @Transactional
     public WithdrawalRequestResponse createWithdrawalRequest(CreateWithdrawalRequest request) {
-        List<WithdrawalRequest> withdrawalRequests = withdrawalRequestRepository.findByCampaignIdAndStatus(request.campaignId(), WithdrawalStatus.APPROVED);
-        if(!withdrawalRequests.isEmpty()&&!request.quick()){
-            throw new AppException(ErrorCode.WITHDRAWAL_BLOCKED_WAITING_PROOF);
-        }
-        if(request.quick()==true){
-            Campaign campaign = campaignRepository.findById(request.campaignId())
-                    .orElseThrow(()->new AppException(ErrorCode.CAMPAIGN_NOT_FOUND));
-            if(campaign.getHasUsedQuickWithdrawal()){
-                throw new AppException(ErrorCode.QUICK_WITHDRAWAL_ALREADY_USED);
-            }
-            campaign.setHasUsedQuickWithdrawal(true);
-            campaignRepository.save(campaign);
-            WithdrawalRequest withdrawalRequest = WithdrawalRequest.builder()
-                    .campaignId(request.campaignId())
-                    .amount(request.amount())
-                    .reason(request.reason())
-                    .type(request.type())
-                    .quick(request.quick())
-                    .build();
-            WithdrawalRequest saved = withdrawalRequestRepository.save(withdrawalRequest);
-            return toWithdrawalRequestResponse(saved);
-        }else{
-            WithdrawalRequest withdrawalRequest = WithdrawalRequest.builder()
-                    .campaignId(request.campaignId())
-                    .amount(request.amount())
-                    .reason(request.reason())
-                    .type(request.type())
-                    .quick(request.quick())
-                    .build();
-            WithdrawalRequest saved = withdrawalRequestRepository.save(withdrawalRequest);
-            return toWithdrawalRequestResponse(saved);
-        }
+        List<WithdrawalRequest> withdrawalRequests = withdrawalRequestRepository.findByCampaignIdAndStatus(request.campaignId(),WithdrawalStatus.WAITING_PROOF);
+        if(!withdrawalRequests.isEmpty()&&withdrawalRequests.size()>1||!request.quick()) throw new AppException(ErrorCode.WITHDRAWAL_ALREADY_APPROVED);
+        if (request.quick()){
+            Query query = new Query(
+                    Criteria.where("_id").is(request.campaignId())
+                            .and("hasUsedQuickWithdrawal").is(false)
+            );
+            Update update  = new Update()
+                    .set("hasUsedQuickWithdrawal",true);
+            UpdateResult updateResult = mongoTemplate.updateFirst(query,update,Campaign.class);
+            if(updateResult.getModifiedCount()==0) throw new AppException(ErrorCode.QUICK_WITHDRAWAL_ALREADY_USED);
     }
+            WithdrawalRequest withdrawalRequest = WithdrawalRequest.builder()
+                    .campaignId(request.campaignId())
+                    .amount(request.amount())
+                    .reason(request.reason())
+                    .type(request.type())
+                    .quick(request.quick())
+                    .build();
+            WithdrawalRequest saved = withdrawalRequestRepository.save(withdrawalRequest);
+            return toWithdrawalRequestResponse(saved);
+        }
+
+
 
     @Override
     public WithdrawalRequestResponse getWithdrawalRequestById(String id) {

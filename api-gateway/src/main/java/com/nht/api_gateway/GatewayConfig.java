@@ -23,7 +23,7 @@ public class GatewayConfig {
     @Bean
     public RouterFunction<ServerResponse> identityServiceRoute() {
         return route("identity-service")
-                .route(request -> request.path().startsWith("/identity"), 
+                .route(request -> request.path().startsWith("/api/identity"),
                        request -> {
                            ServiceInstance instance = loadBalancerClient.choose("IDENTITY-SERVICE");
                            if (instance == null) {
@@ -32,14 +32,14 @@ public class GatewayConfig {
                            String uri = instance.getUri().toString();
                            return HandlerFunctions.http(uri).handle(request);
                        })
-                .filter(stripPrefix(1))
+                .filter(stripPrefix(2))  // Strip both /api and /identity
                 .build();
     }
 
     @Bean
     public RouterFunction<ServerResponse> campaignServiceRoute() {
         return route("core-service")
-                .route(request -> request.path().startsWith("/core"),
+                .route(request -> request.path().startsWith("/api/core"),
                        request -> {
                            ServiceInstance instance = loadBalancerClient.choose("CORE-SERVICE");
                            if (instance == null) {
@@ -48,14 +48,14 @@ public class GatewayConfig {
                            String uri = instance.getUri().toString();
                            return HandlerFunctions.http(uri).handle(request);
                        })
-                .filter(stripPrefix(1))
+                .filter(stripPrefix(2))  // Strip both /api and /core
                 .build();
     }
 
     @Bean
     public RouterFunction<ServerResponse> fileServiceRoute() {
         return route("file-service")
-                .route(request -> request.path().startsWith("/file"), 
+                .route(request -> request.path().startsWith("/api/file"),
                        request -> {
                            ServiceInstance instance = loadBalancerClient.choose("FILE-SERVICE");
                            if (instance == null) {
@@ -64,7 +64,7 @@ public class GatewayConfig {
                            String uri = instance.getUri().toString();
                            return HandlerFunctions.http(uri).handle(request);
                        })
-                .filter(stripPrefix(1))
+                .filter(stripPrefix(2))  // Strip both /api and /file
                 .build();
     }
 }

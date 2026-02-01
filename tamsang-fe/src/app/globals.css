@@ -1,0 +1,206 @@
+@import "tailwindcss";
+
+/* Digital Nature Theme - Emerald, Mint, Sage */
+:root {
+  /* Base Colors */
+  --background: 0 0% 100%;
+  --foreground: 160 10% 10%;
+
+  /* Card */
+  --card: 0 0% 100%;
+  --card-foreground: 160 10% 10%;
+
+  /* Popover */
+  --popover: 0 0% 100%;
+  --popover-foreground: 160 10% 10%;
+
+  /* Primary - Emerald */
+  --primary: 158 64% 40%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary - Mint */
+  --secondary: 152 76% 85%;
+  --secondary-foreground: 160 10% 15%;
+
+  /* Muted */
+  --muted: 150 20% 96%;
+  --muted-foreground: 160 10% 45%;
+
+  /* Accent - Sage */
+  --accent: 84 60% 45%;
+  --accent-foreground: 0 0% 100%;
+
+  /* Destructive */
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Border & Input */
+  --border: 150 15% 90%;
+  --input: 150 15% 90%;
+  --ring: 158 64% 40%;
+
+  /* Radius */
+  --radius: 0.75rem;
+
+  /* Chart Colors */
+  --chart-1: 158 64% 40%;
+  --chart-2: 152 76% 65%;
+  --chart-3: 84 60% 45%;
+  --chart-4: 160 40% 55%;
+  --chart-5: 140 50% 60%;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 160 15% 8%;
+    --foreground: 150 20% 95%;
+
+    --card: 160 15% 10%;
+    --card-foreground: 150 20% 95%;
+
+    --popover: 160 15% 10%;
+    --popover-foreground: 150 20% 95%;
+
+    --primary: 158 64% 45%;
+    --primary-foreground: 160 10% 10%;
+
+    --secondary: 152 40% 25%;
+    --secondary-foreground: 150 20% 95%;
+
+    --muted: 160 15% 15%;
+    --muted-foreground: 150 15% 60%;
+
+    --accent: 84 50% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 160 15% 18%;
+    --input: 160 15% 18%;
+    --ring: 158 64% 45%;
+  }
+}
+
+/* Dark mode class support (for next-themes) */
+.dark {
+  --background: 160 15% 8%;
+  --foreground: 150 20% 95%;
+
+  --card: 160 15% 10%;
+  --card-foreground: 150 20% 95%;
+
+  --popover: 160 15% 10%;
+  --popover-foreground: 150 20% 95%;
+
+  --primary: 158 64% 45%;
+  --primary-foreground: 160 10% 10%;
+
+  --secondary: 152 40% 25%;
+  --secondary-foreground: 150 20% 95%;
+
+  --muted: 160 15% 15%;
+  --muted-foreground: 150 15% 60%;
+
+  --accent: 84 50% 40%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 62% 45%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 160 15% 18%;
+  --input: 160 15% 18%;
+  --ring: 158 64% 45%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+}
+
+/* Base Styles */
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Focus Styles */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--foreground));
+}
+
+/* Container */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .container {
+    max-width: 1400px;
+  }
+}

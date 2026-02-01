@@ -31,7 +31,7 @@ public class Campaign {
 
 	@Indexed
 	private String title;
-
+	private String description;
 	private String content;
 
 	private BigDecimal targetAmount;
@@ -42,7 +42,7 @@ public class Campaign {
 
 	@Indexed
 	@Builder.Default
-	private CampaignStatus status = CampaignStatus.DRAFT;
+	private CampaignStatus status = CampaignStatus.ACTIVE;
 
 	private LocalDateTime startDate;
 

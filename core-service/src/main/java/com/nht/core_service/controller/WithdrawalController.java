@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/api/v1/withdrawals")
+@RequestMapping("/withdrawals")
 @RequiredArgsConstructor
 @Slf4j
 public class WithdrawalController {
@@ -29,9 +29,7 @@ public class WithdrawalController {
 	) {
 		log.info("Creating withdrawal request for campaign: {}", request.campaignId());
 		WithdrawalRequestResponse response = withdrawalRequestService.createWithdrawalRequest(request);
-		return ResponseEntity.ok(ApiResponse.<WithdrawalRequestResponse>builder()
-			.result(response)
-			.build());
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal request created successfully", response));
 	}
 	
 	@GetMapping("/{id}")
@@ -40,9 +38,7 @@ public class WithdrawalController {
 	) {
 		log.info("Getting withdrawal request: {}", id);
 		WithdrawalRequestResponse response = withdrawalRequestService.getWithdrawalRequestById(id);
-		return ResponseEntity.ok(ApiResponse.<WithdrawalRequestResponse>builder()
-			.result(response)
-			.build());
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal request retrieved successfully", response));
 	}
 	
 	@GetMapping
@@ -60,9 +56,7 @@ public class WithdrawalController {
 			withdrawals = withdrawalRequestService.getAllWithdrawals(page, size);
 		}
 		
-		return ResponseEntity.ok(ApiResponse.<Page<WithdrawalRequestResponse>>builder()
-			.result(withdrawals)
-			.build());
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawals retrieved successfully", withdrawals));
 	}
 	
 	@PutMapping("/{id}/approve")
@@ -71,9 +65,7 @@ public class WithdrawalController {
 	) {
 		log.info("Approving withdrawal request: {}", id);
 		WithdrawalRequestResponse response = withdrawalRequestService.approveWithdrawal(id);
-		return ResponseEntity.ok(ApiResponse.<WithdrawalRequestResponse>builder()
-			.result(response)
-			.build());
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal request approved successfully", response));
 	}
 	
 	@PutMapping("/{id}/reject")
@@ -83,8 +75,6 @@ public class WithdrawalController {
 	) {
 		log.info("Rejecting withdrawal request: {} with reason: {}", id, request.reason());
 		WithdrawalRequestResponse response = withdrawalRequestService.rejectWithdrawal(id, request.reason());
-		return ResponseEntity.ok(ApiResponse.<WithdrawalRequestResponse>builder()
-			.result(response)
-			.build());
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal request rejected successfully", response));
 	}
 }
