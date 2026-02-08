@@ -148,7 +148,7 @@ func (h *ContractHandler) GetContract(c *gin.Context) {
 		Message: "Contract retrieved successfully",
 		Result: map[string]interface{}{
 			"id":             contract.ID.String(),
-			"campaign_id":    contract.CampaignID.String(),
+			"campaign_id":    contract.CampaignID,
 			"campaign_name":  contract.CampaignName,
 			"description":    contract.Description,
 			"organizer_name": contract.OrganizerName,
@@ -201,7 +201,7 @@ func (h *ContractHandler) GetContractByCampaign(c *gin.Context) {
 		Message: "Contract retrieved successfully",
 		Result: map[string]interface{}{
 			"id":            contract.ID.String(),
-			"campaign_id":   contract.CampaignID.String(),
+			"campaign_id":   contract.CampaignID,
 			"campaign_name": contract.CampaignName,
 			"content_hash":  contract.ContentHash,
 			"signature_alg": contract.SignatureAlg,
@@ -248,7 +248,7 @@ func (h *ContractHandler) DownloadContract(c *gin.Context) {
 		return
 	}
 
-	filename := "contract_" + contract.CampaignID.String() + ".pdf"
+	filename := "contract_" + contract.CampaignID + ".pdf"
 	c.Header("Content-Disposition", "attachment; filename="+filename)
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Length", string(rune(len(contract.Content))))

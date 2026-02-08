@@ -70,10 +70,7 @@ func (s *ContractSigner) SignContract(ctx context.Context, req *domain.ContractC
 	)
 
 	// Parse campaign ID
-	campaignID, err := uuid.Parse(req.CampaignID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid campaign ID: %w", err)
-	}
+	campaignID := req.CampaignID
 
 	// Check if contract already exists for this campaign
 	existingContract, err := s.contractRepo.GetByCampaignID(ctx, campaignID)
@@ -192,10 +189,7 @@ func (s *ContractSigner) SignContract(ctx context.Context, req *domain.ContractC
 
 // VerifyContract verifies a contract's signature
 func (s *ContractSigner) VerifyContract(ctx context.Context, contractID string) (bool, error) {
-	id, err := uuid.Parse(contractID)
-	if err != nil {
-		return false, fmt.Errorf("invalid contract ID: %w", err)
-	}
+	id := contractID
 
 	contract, err := s.contractRepo.GetByID(ctx, id)
 	if err != nil {
@@ -224,10 +218,7 @@ func (s *ContractSigner) VerifyContract(ctx context.Context, contractID string) 
 
 // GetContract retrieves a contract by ID
 func (s *ContractSigner) GetContract(ctx context.Context, contractID string) (*domain.Contract, error) {
-	id, err := uuid.Parse(contractID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid contract ID: %w", err)
-	}
+	id := contractID
 
 	contract, err := s.contractRepo.GetByID(ctx, id)
 	if err != nil {
@@ -242,10 +233,7 @@ func (s *ContractSigner) GetContract(ctx context.Context, contractID string) (*d
 
 // GetContractByCampaign retrieves a contract by campaign ID
 func (s *ContractSigner) GetContractByCampaign(ctx context.Context, campaignID string) (*domain.Contract, error) {
-	id, err := uuid.Parse(campaignID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid campaign ID: %w", err)
-	}
+	id := campaignID
 
 	contract, err := s.contractRepo.GetByCampaignID(ctx, id)
 	if err != nil {

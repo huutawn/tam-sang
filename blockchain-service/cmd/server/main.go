@@ -13,12 +13,14 @@ import (
 	"blockchain-service/config"
 	httpRouter "blockchain-service/internal/delivery/http"
 	"blockchain-service/internal/delivery/http/handler"
+	kafkaHandler "blockchain-service/internal/delivery/kafka"
 	"blockchain-service/internal/domain"
 	"blockchain-service/internal/repository"
 	"blockchain-service/internal/usecase"
 	"blockchain-service/pkg/cronjob"
 	"blockchain-service/pkg/database"
 	"blockchain-service/pkg/eureka"
+	"blockchain-service/pkg/httpclient"
 	"blockchain-service/pkg/kafka"
 	"blockchain-service/pkg/logger"
 
@@ -195,6 +197,29 @@ func main() {
 			// Start contract consumer
 			contractConsumer.Start(ctx)
 			defer contractConsumer.Stop()
+		}
+
+		// Initialize donation consumer if topic is configured
+		if cfg.Kafka.TopicDonationEvents != "" {
+			// Create HTTP client to call back core-service
+			coreServiceClient := httpclient.NewCoreServiceClient(cfg.Eureka.URL)
+
+			// Create donation handler
+			donationHandler := kafkaHandler.NewDonationHandler(ledgerAuditor, coreServiceClient)
+
+			// Create donation consumer
+			donationConsumer := kafka.NewConsumer(&cfg.Kafka, cfg.Kafka.TopicDonationEvents)
+
+			// Register handler for donation events
+			donationConsumer.RegisterHandler("*", donationHandler.HandleDonationEvent)
+
+			// Start donation consumer
+			donationConsumer.Start(ctx)
+			defer donationConsumer.Stop()
+
+			logger.Info("Donation consumer started",
+				zap.String("topic", cfg.Kafka.TopicDonationEvents),
+			)
 		}
 	}
 

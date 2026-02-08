@@ -54,10 +54,7 @@ func (w *WalletGuard) CreateWallet(ctx context.Context, req *domain.WalletCreate
 	}
 
 	// Parse campaign ID
-	campaignID, err := uuid.Parse(req.CampaignID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid campaign ID: %w", err)
-	}
+	campaignID := req.CampaignID
 
 	// Check if wallet already exists for campaign
 	exists, err := w.walletRepo.ExistsByCampaignID(ctx, campaignID)
@@ -104,7 +101,7 @@ func (w *WalletGuard) CreateWallet(ctx context.Context, req *domain.WalletCreate
 
 	// Create wallet entity - NOTE: No Balance field, calculated from chain
 	wallet := &domain.Wallet{
-		ID:                  uuid.New(),
+		ID:                  uuid.New().String(),
 		CampaignID:          campaignID,
 		EncryptedPrivateKey: encryptedPrivateKey,
 		PublicKey:           publicKey,
@@ -120,13 +117,13 @@ func (w *WalletGuard) CreateWallet(ctx context.Context, req *domain.WalletCreate
 	}
 
 	logger.Info("Wallet created successfully",
-		zap.String("wallet_id", wallet.ID.String()),
+		zap.String("wallet_id", wallet.ID),
 		zap.String("campaign_id", req.CampaignID),
 		zap.String("address", address),
 	)
 
 	return &domain.WalletResponse{
-		ID:               wallet.ID.String(),
+		ID:               wallet.ID,
 		CampaignID:       req.CampaignID,
 		Address:          wallet.Address,
 		PublicKey:        wallet.PublicKey,
@@ -143,10 +140,7 @@ func (w *WalletGuard) CreateWallet(ctx context.Context, req *domain.WalletCreate
 
 // GetWallet retrieves a wallet by ID (with balance info)
 func (w *WalletGuard) GetWallet(ctx context.Context, walletID string) (*domain.WalletResponse, error) {
-	id, err := uuid.Parse(walletID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	id := walletID
 
 	wallet, err := w.walletRepo.GetByID(ctx, id)
 	if err != nil {
@@ -157,27 +151,22 @@ func (w *WalletGuard) GetWallet(ctx context.Context, walletID string) (*domain.W
 	}
 
 	return &domain.WalletResponse{
-		ID:               wallet.ID.String(),
-		CampaignID:       wallet.CampaignID.String(),
-		Address:          wallet.Address,
-		PublicKey:        wallet.PublicKey,
-		Balance:          wallet.Balance,
-		TotalDeposits:    wallet.TotalDeposits,
-		TotalWithdrawals: wallet.TotalWithdrawals,
-		Currency:         wallet.Currency,
-		Status:           wallet.Status,
-		IsVerified:       wallet.IsVerified,
-		LastVerifiedAt:   wallet.LastVerifiedAt,
-		CreatedAt:        wallet.CreatedAt,
+		ID:             wallet.ID,
+		CampaignID:     wallet.CampaignID,
+		Address:        wallet.Address,
+		PublicKey:      wallet.PublicKey,
+		Balance:        wallet.Balance,
+		Currency:       wallet.Currency,
+		Status:         wallet.Status,
+		IsVerified:     wallet.IsVerified,
+		LastVerifiedAt: wallet.LastVerifiedAt,
+		CreatedAt:      wallet.CreatedAt,
 	}, nil
 }
 
 // GetWalletByCampaign retrieves a wallet by campaign ID
 func (w *WalletGuard) GetWalletByCampaign(ctx context.Context, campaignID string) (*domain.WalletResponse, error) {
-	id, err := uuid.Parse(campaignID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid campaign ID: %w", err)
-	}
+	id := campaignID
 
 	wallet, err := w.walletRepo.GetByCampaignID(ctx, id)
 	if err != nil {
@@ -188,18 +177,16 @@ func (w *WalletGuard) GetWalletByCampaign(ctx context.Context, campaignID string
 	}
 
 	return &domain.WalletResponse{
-		ID:               wallet.ID.String(),
-		CampaignID:       wallet.CampaignID.String(),
-		Address:          wallet.Address,
-		PublicKey:        wallet.PublicKey,
-		Balance:          wallet.Balance,
-		TotalDeposits:    wallet.TotalDeposits,
-		TotalWithdrawals: wallet.TotalWithdrawals,
-		Currency:         wallet.Currency,
-		Status:           wallet.Status,
-		IsVerified:       wallet.IsVerified,
-		LastVerifiedAt:   wallet.LastVerifiedAt,
-		CreatedAt:        wallet.CreatedAt,
+		ID:             wallet.ID,
+		CampaignID:     wallet.CampaignID,
+		Address:        wallet.Address,
+		PublicKey:      wallet.PublicKey,
+		Balance:        wallet.Balance,
+		Currency:       wallet.Currency,
+		Status:         wallet.Status,
+		IsVerified:     wallet.IsVerified,
+		LastVerifiedAt: wallet.LastVerifiedAt,
+		CreatedAt:      wallet.CreatedAt,
 	}, nil
 }
 
@@ -209,10 +196,7 @@ func (w *WalletGuard) DecryptWalletData(ctx context.Context, req *domain.WalletD
 		return nil, fmt.Errorf("AES encryptor not initialized")
 	}
 
-	id, err := uuid.Parse(req.WalletID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	id := req.WalletID
 
 	wallet, err := w.walletRepo.GetByID(ctx, id)
 	if err != nil {
@@ -283,10 +267,7 @@ func (w *WalletGuard) Decrypt(ctx context.Context, cipherText string) (string, e
 
 // FreezeWallet freezes a wallet
 func (w *WalletGuard) FreezeWallet(ctx context.Context, walletID string) error {
-	id, err := uuid.Parse(walletID)
-	if err != nil {
-		return fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	id := walletID
 
 	if err := w.walletRepo.UpdateStatus(ctx, id, "frozen"); err != nil {
 		return fmt.Errorf("failed to freeze wallet: %w", err)
@@ -298,10 +279,7 @@ func (w *WalletGuard) FreezeWallet(ctx context.Context, walletID string) error {
 
 // UnfreezeWallet unfreezes a wallet
 func (w *WalletGuard) UnfreezeWallet(ctx context.Context, walletID string) error {
-	id, err := uuid.Parse(walletID)
-	if err != nil {
-		return fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	id := walletID
 
 	if err := w.walletRepo.UpdateStatus(ctx, id, "active"); err != nil {
 		return fmt.Errorf("failed to unfreeze wallet: %w", err)
@@ -313,10 +291,7 @@ func (w *WalletGuard) UnfreezeWallet(ctx context.Context, walletID string) error
 
 // DeleteWallet deletes a wallet by ID (for saga rollback)
 func (w *WalletGuard) DeleteWallet(ctx context.Context, walletID string) error {
-	id, err := uuid.Parse(walletID)
-	if err != nil {
-		return fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	id := walletID
 
 	if err := w.walletRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete wallet: %w", err)
@@ -328,10 +303,7 @@ func (w *WalletGuard) DeleteWallet(ctx context.Context, walletID string) error {
 
 // DeleteWalletByCampaign deletes a wallet by campaign ID (for saga rollback)
 func (w *WalletGuard) DeleteWalletByCampaign(ctx context.Context, campaignID string) error {
-	id, err := uuid.Parse(campaignID)
-	if err != nil {
-		return fmt.Errorf("invalid campaign ID: %w", err)
-	}
+	id := campaignID
 
 	wallet, err := w.walletRepo.GetByCampaignID(ctx, id)
 	if err != nil {
@@ -347,7 +319,7 @@ func (w *WalletGuard) DeleteWalletByCampaign(ctx context.Context, campaignID str
 
 	logger.Info("Wallet deleted by campaign",
 		zap.String("campaign_id", campaignID),
-		zap.String("wallet_id", wallet.ID.String()),
+		zap.String("wallet_id", wallet.ID),
 	)
 	return nil
 }

@@ -6,7 +6,6 @@ import (
 
 	"blockchain-service/internal/domain"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -29,7 +28,7 @@ func (r *ContractRepository) Create(ctx context.Context, contract *domain.Contra
 }
 
 // GetByID retrieves a contract by ID
-func (r *ContractRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Contract, error) {
+func (r *ContractRepository) GetByID(ctx context.Context, id string) (*domain.Contract, error) {
 	var contract domain.Contract
 	if err := r.db.WithContext(ctx).First(&contract, "id = ?", id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -41,7 +40,7 @@ func (r *ContractRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 }
 
 // GetByCampaignID retrieves a contract by campaign ID
-func (r *ContractRepository) GetByCampaignID(ctx context.Context, campaignID uuid.UUID) (*domain.Contract, error) {
+func (r *ContractRepository) GetByCampaignID(ctx context.Context, campaignID string) (*domain.Contract, error) {
 	var contract domain.Contract
 	if err := r.db.WithContext(ctx).First(&contract, "campaign_id = ?", campaignID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -95,7 +94,7 @@ func (r *ContractRepository) Update(ctx context.Context, contract *domain.Contra
 }
 
 // Delete deletes a contract by ID
-func (r *ContractRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *ContractRepository) Delete(ctx context.Context, id string) error {
 	if err := r.db.WithContext(ctx).Delete(&domain.Contract{}, "id = ?", id).Error; err != nil {
 		return fmt.Errorf("failed to delete contract: %w", err)
 	}

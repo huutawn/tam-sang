@@ -53,7 +53,7 @@ func (r *TransactionHashRepository) GetByTransactionID(ctx context.Context, txID
 }
 
 // GetByWalletID retrieves all transaction hashes for a wallet, ordered by block index
-func (r *TransactionHashRepository) GetByWalletID(ctx context.Context, walletID uuid.UUID) ([]domain.TransactionHash, error) {
+func (r *TransactionHashRepository) GetByWalletID(ctx context.Context, walletID string) ([]domain.TransactionHash, error) {
 	var hashes []domain.TransactionHash
 	if err := r.db.WithContext(ctx).
 		Where("wallet_id = ?", walletID).
@@ -65,7 +65,7 @@ func (r *TransactionHashRepository) GetByWalletID(ctx context.Context, walletID 
 }
 
 // GetLatestByWalletID retrieves the latest (highest block index) transaction hash for a wallet
-func (r *TransactionHashRepository) GetLatestByWalletID(ctx context.Context, walletID uuid.UUID) (*domain.TransactionHash, error) {
+func (r *TransactionHashRepository) GetLatestByWalletID(ctx context.Context, walletID string) (*domain.TransactionHash, error) {
 	var hash domain.TransactionHash
 	if err := r.db.WithContext(ctx).
 		Where("wallet_id = ?", walletID).
@@ -80,7 +80,7 @@ func (r *TransactionHashRepository) GetLatestByWalletID(ctx context.Context, wal
 }
 
 // CountByWalletID returns the count of blocks for a wallet
-func (r *TransactionHashRepository) CountByWalletID(ctx context.Context, walletID uuid.UUID) (int64, error) {
+func (r *TransactionHashRepository) CountByWalletID(ctx context.Context, walletID string) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&domain.TransactionHash{}).
@@ -92,7 +92,7 @@ func (r *TransactionHashRepository) CountByWalletID(ctx context.Context, walletI
 }
 
 // GetByWalletIDPaginated retrieves transaction hashes with pagination
-func (r *TransactionHashRepository) GetByWalletIDPaginated(ctx context.Context, walletID uuid.UUID, offset, limit int) ([]domain.TransactionHash, int64, error) {
+func (r *TransactionHashRepository) GetByWalletIDPaginated(ctx context.Context, walletID string, offset, limit int) ([]domain.TransactionHash, int64, error) {
 	var hashes []domain.TransactionHash
 	var total int64
 
@@ -118,7 +118,7 @@ func (r *TransactionHashRepository) GetByWalletIDPaginated(ctx context.Context, 
 }
 
 // GetBlockRange retrieves blocks within a specific index range for a wallet
-func (r *TransactionHashRepository) GetBlockRange(ctx context.Context, walletID uuid.UUID, startIndex, endIndex int64) ([]domain.TransactionHash, error) {
+func (r *TransactionHashRepository) GetBlockRange(ctx context.Context, walletID string, startIndex, endIndex int64) ([]domain.TransactionHash, error) {
 	var hashes []domain.TransactionHash
 	if err := r.db.WithContext(ctx).
 		Where("wallet_id = ? AND block_index >= ? AND block_index <= ?", walletID, startIndex, endIndex).
@@ -130,7 +130,7 @@ func (r *TransactionHashRepository) GetBlockRange(ctx context.Context, walletID 
 }
 
 // DeleteByWalletID deletes all transaction hashes for a wallet (use with caution)
-func (r *TransactionHashRepository) DeleteByWalletID(ctx context.Context, walletID uuid.UUID) error {
+func (r *TransactionHashRepository) DeleteByWalletID(ctx context.Context, walletID string) error {
 	if err := r.db.WithContext(ctx).
 		Delete(&domain.TransactionHash{}, "wallet_id = ?", walletID).Error; err != nil {
 		return fmt.Errorf("failed to delete transaction hashes: %w", err)

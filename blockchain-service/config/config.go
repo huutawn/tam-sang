@@ -52,6 +52,7 @@ type KafkaConfig struct {
 	TopicTransactionEvents string
 	TopicAuditResults      string
 	TopicContractSign      string
+	TopicDonationEvents    string
 }
 
 // CryptoConfig holds cryptographic keys configuration
@@ -120,6 +121,7 @@ func Load() (*Config, error) {
 			TopicTransactionEvents: viper.GetString("KAFKA_TOPIC_TRANSACTION_EVENTS"),
 			TopicAuditResults:      viper.GetString("KAFKA_TOPIC_AUDIT_RESULTS"),
 			TopicContractSign:      viper.GetString("KAFKA_TOPIC_CONTRACT_SIGN"),
+			TopicDonationEvents:    viper.GetString("KAFKA_TOPIC_DONATION_EVENTS"),
 		},
 		Crypto: CryptoConfig{
 			RSAPrivateKey:    viper.GetString("RSA_PRIVATE_KEY"),
@@ -172,6 +174,7 @@ func setDefaults() {
 	viper.SetDefault("KAFKA_TOPIC_TRANSACTION_EVENTS", "transaction-events")
 	viper.SetDefault("KAFKA_TOPIC_AUDIT_RESULTS", "audit-results")
 	viper.SetDefault("KAFKA_TOPIC_CONTRACT_SIGN", "contract-sign-request")
+	viper.SetDefault("KAFKA_TOPIC_DONATION_EVENTS", "donation-events")
 
 	// Crypto defaults
 	viper.SetDefault("SIGNING_ALGORITHM", "ECDSA")

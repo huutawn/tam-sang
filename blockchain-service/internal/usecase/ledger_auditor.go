@@ -45,10 +45,7 @@ func (l *LedgerAuditor) VerifyWalletChain(ctx context.Context, walletID string) 
 	logger.Info("Verifying wallet chain integrity", zap.String("wallet_id", walletID))
 
 	// Parse wallet ID
-	wID, err := uuid.Parse(walletID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	wID := walletID
 
 	// Get all transaction hashes for the wallet
 	hashes, err := l.txHashRepo.GetByWalletID(ctx, wID)
@@ -173,10 +170,7 @@ func (l *LedgerAuditor) AddTransaction(ctx context.Context, event *domain.Transa
 	)
 
 	// Parse IDs
-	walletID, err := uuid.Parse(event.WalletID)
-	if err != nil {
-		return fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	walletID := event.WalletID
 
 	transactionID, err := uuid.Parse(event.TransactionID)
 	if err != nil {
@@ -322,20 +316,14 @@ func (l *LedgerAuditor) AddTransaction(ctx context.Context, event *domain.Transa
 
 // GetTransactionHistory retrieves the transaction history for a wallet
 func (l *LedgerAuditor) GetTransactionHistory(ctx context.Context, walletID string, offset, limit int) ([]domain.TransactionHash, int64, error) {
-	wID, err := uuid.Parse(walletID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	wID := walletID
 
 	return l.txHashRepo.GetByWalletIDPaginated(ctx, wID, offset, limit)
 }
 
 // GetBlockCount returns the number of blocks for a wallet
 func (l *LedgerAuditor) GetBlockCount(ctx context.Context, walletID string) (int64, error) {
-	wID, err := uuid.Parse(walletID)
-	if err != nil {
-		return 0, fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	wID := walletID
 
 	return l.txHashRepo.CountByWalletID(ctx, wID)
 }
@@ -344,10 +332,7 @@ func (l *LedgerAuditor) GetBlockCount(ctx context.Context, walletID string) (int
 func (l *LedgerAuditor) GetWalletBalance(ctx context.Context, walletID string, currency string) (*domain.WalletBalanceResponse, error) {
 	logger.Info("Calculating wallet balance from chain", zap.String("wallet_id", walletID))
 
-	wID, err := uuid.Parse(walletID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid wallet ID: %w", err)
-	}
+	wID := walletID
 
 	// Get wallet for cached balance
 	wallet, err := l.walletRepo.GetByID(ctx, wID)
@@ -431,7 +416,7 @@ func (l *LedgerAuditor) GetWalletBalance(ctx context.Context, walletID string, c
 
 	return &domain.WalletBalanceResponse{
 		WalletID:          walletID,
-		CampaignID:        wallet.CampaignID.String(),
+		CampaignID:        wallet.CampaignID,
 		CachedBalance:     wallet.Balance,
 		CalculatedBalance: calculatedBalance,
 		TotalDeposits:     totalDeposits,

@@ -2,16 +2,14 @@ package domain
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Wallet represents a campaign wallet with encrypted sensitive data
 // Balance is cached here and updated on each transaction, verified by cronjob every 2 hours
 type Wallet struct {
-	ID                  uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	CampaignID          uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"` // Wallet belongs to this campaign
-	EncryptedPrivateKey string    `gorm:"type:text"`                      // AES-256 encrypted private key
+	ID                  string    `gorm:"type:varchar(100);primary_key"`
+	CampaignID          string    `gorm:"type:varchar(100);not null;uniqueIndex"` // Wallet belongs to this campaign
+	EncryptedPrivateKey string    `gorm:"type:text"`                              // AES-256 encrypted private key
 	PublicKey           string    `gorm:"type:text"`
 	Address             string    `gorm:"size:100;uniqueIndex"`
 	EncryptedSeedPhrase string    `gorm:"type:text"`                    // AES-256 encrypted seed phrase

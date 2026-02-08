@@ -13,7 +13,6 @@ import (
 
 	"encoding/json"
 
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -127,14 +126,14 @@ func (v *WalletVerifier) runVerification(ctx context.Context) {
 		} else if !result.IsValid {
 			tampered++
 			logger.Warn("Wallet chain tampered detected",
-				zap.String("wallet_id", wallet.ID.String()),
-				zap.String("campaign_id", wallet.CampaignID.String()),
+				zap.String("wallet_id", wallet.ID),
+				zap.String("campaign_id", wallet.CampaignID),
 				zap.String("chain_integrity", result.ChainIntegrity),
 			)
 		} else if !result.BalanceMatch {
 			failed++
 			logger.Warn("Wallet balance mismatch detected",
-				zap.String("wallet_id", wallet.ID.String()),
+				zap.String("wallet_id", wallet.ID),
 				zap.Float64("cached", result.CachedBalance),
 				zap.Float64("calculated", result.CalculatedBalance),
 			)
@@ -159,8 +158,8 @@ func (v *WalletVerifier) runVerification(ctx context.Context) {
 // verifyWallet verifies a single wallet and updates its status
 func (v *WalletVerifier) verifyWallet(ctx context.Context, wallet *domain.Wallet) domain.WalletVerificationResult {
 	result := domain.WalletVerificationResult{
-		WalletID:      wallet.ID.String(),
-		CampaignID:    wallet.CampaignID.String(),
+		WalletID:      wallet.ID,
+		CampaignID:    wallet.CampaignID,
 		CachedBalance: wallet.Balance,
 		VerifiedAt:    time.Now(),
 	}
@@ -236,7 +235,7 @@ func (v *WalletVerifier) verifyWallet(ctx context.Context, wallet *domain.Wallet
 	// If there's a balance mismatch but chain is valid, fix the cached balance
 	if chainValid && !result.BalanceMatch {
 		logger.Warn("Fixing wallet balance mismatch",
-			zap.String("wallet_id", wallet.ID.String()),
+			zap.String("wallet_id", wallet.ID),
 			zap.Float64("old_balance", wallet.Balance),
 			zap.Float64("correct_balance", calculatedBalance),
 		)
@@ -268,10 +267,7 @@ func (v *WalletVerifier) publishAuditResult(ctx context.Context, result *domain.
 
 // VerifyWalletNow verifies a single wallet immediately
 func (v *WalletVerifier) VerifyWalletNow(ctx context.Context, walletID string) (*domain.WalletVerificationResult, error) {
-	id, err := uuid.Parse(walletID)
-	if err != nil {
-		return nil, err
-	}
+	id := walletID
 
 	wallet, err := v.walletRepo.GetByID(ctx, id)
 	if err != nil {

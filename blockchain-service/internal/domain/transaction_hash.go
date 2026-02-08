@@ -9,7 +9,7 @@ import (
 // TransactionHash represents a block in the hash chain ledger
 type TransactionHash struct {
 	ID              uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	WalletID        uuid.UUID `gorm:"type:uuid;not null;index:idx_wallet_block"`
+	WalletID        string    `gorm:"type:varchar(100);not null;index:idx_wallet_block"`
 	TransactionID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"`
 	PreviousHash    string    `gorm:"size:64"`            // Hash of previous block, "0" for genesis
 	CurrentHash     string    `gorm:"size:64;not null"`   // SHA-256 hash of this block

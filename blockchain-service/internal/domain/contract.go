@@ -9,7 +9,7 @@ import (
 // Contract represents a digitally signed campaign contract
 type Contract struct {
 	ID            uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	CampaignID    uuid.UUID `gorm:"type:uuid;not null;index"`
+	CampaignID    string    `gorm:"type:varchar(100);not null;index"`
 	CampaignName  string    `gorm:"size:255;not null"`
 	Description   string    `gorm:"type:text"`
 	OrganizerName string    `gorm:"size:255;not null"`

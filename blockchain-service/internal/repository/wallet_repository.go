@@ -6,7 +6,6 @@ import (
 
 	"blockchain-service/internal/domain"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -30,7 +29,7 @@ func (r *WalletRepository) Create(ctx context.Context, wallet *domain.Wallet) er
 }
 
 // GetByID retrieves a wallet by ID
-func (r *WalletRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Wallet, error) {
+func (r *WalletRepository) GetByID(ctx context.Context, id string) (*domain.Wallet, error) {
 	var wallet domain.Wallet
 	if err := r.db.WithContext(ctx).First(&wallet, "id = ?", id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -42,7 +41,7 @@ func (r *WalletRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.W
 }
 
 // GetByIDForUpdate retrieves a wallet by ID with row lock for transaction safety
-func (r *WalletRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Wallet, error) {
+func (r *WalletRepository) GetByIDForUpdate(ctx context.Context, id string) (*domain.Wallet, error) {
 	var wallet domain.Wallet
 	if err := r.db.WithContext(ctx).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -56,7 +55,7 @@ func (r *WalletRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (
 }
 
 // GetByCampaignID retrieves a wallet by campaign ID
-func (r *WalletRepository) GetByCampaignID(ctx context.Context, campaignID uuid.UUID) (*domain.Wallet, error) {
+func (r *WalletRepository) GetByCampaignID(ctx context.Context, campaignID string) (*domain.Wallet, error) {
 	var wallet domain.Wallet
 	if err := r.db.WithContext(ctx).First(&wallet, "campaign_id = ?", campaignID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -68,7 +67,7 @@ func (r *WalletRepository) GetByCampaignID(ctx context.Context, campaignID uuid.
 }
 
 // GetByCampaignIDForUpdate retrieves a wallet by campaign ID with row lock
-func (r *WalletRepository) GetByCampaignIDForUpdate(ctx context.Context, campaignID uuid.UUID) (*domain.Wallet, error) {
+func (r *WalletRepository) GetByCampaignIDForUpdate(ctx context.Context, campaignID string) (*domain.Wallet, error) {
 	var wallet domain.Wallet
 	if err := r.db.WithContext(ctx).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -102,7 +101,7 @@ func (r *WalletRepository) Update(ctx context.Context, wallet *domain.Wallet) er
 }
 
 // UpdateBalance updates wallet balance and amounts
-func (r *WalletRepository) UpdateBalance(ctx context.Context, id uuid.UUID, balance, totalDeposits, totalWithdrawals float64) error {
+func (r *WalletRepository) UpdateBalance(ctx context.Context, id string, balance, totalDeposits, totalWithdrawals float64) error {
 	if err := r.db.WithContext(ctx).
 		Model(&domain.Wallet{}).
 		Where("id = ?", id).
@@ -117,7 +116,7 @@ func (r *WalletRepository) UpdateBalance(ctx context.Context, id uuid.UUID, bala
 }
 
 // UpdateVerificationStatus updates wallet verification status
-func (r *WalletRepository) UpdateVerificationStatus(ctx context.Context, id uuid.UUID, isVerified bool, verifiedAt interface{}) error {
+func (r *WalletRepository) UpdateVerificationStatus(ctx context.Context, id string, isVerified bool, verifiedAt interface{}) error {
 	if err := r.db.WithContext(ctx).
 		Model(&domain.Wallet{}).
 		Where("id = ?", id).
@@ -131,7 +130,7 @@ func (r *WalletRepository) UpdateVerificationStatus(ctx context.Context, id uuid
 }
 
 // UpdateStatus updates wallet status
-func (r *WalletRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
+func (r *WalletRepository) UpdateStatus(ctx context.Context, id string, status string) error {
 	if err := r.db.WithContext(ctx).
 		Model(&domain.Wallet{}).
 		Where("id = ?", id).
@@ -175,7 +174,7 @@ func (r *WalletRepository) ListAll(ctx context.Context) ([]domain.Wallet, error)
 }
 
 // Delete deletes a wallet by ID
-func (r *WalletRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *WalletRepository) Delete(ctx context.Context, id string) error {
 	if err := r.db.WithContext(ctx).Delete(&domain.Wallet{}, "id = ?", id).Error; err != nil {
 		return fmt.Errorf("failed to delete wallet: %w", err)
 	}
@@ -183,7 +182,7 @@ func (r *WalletRepository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 // ExistsByCampaignID checks if a wallet exists for a campaign
-func (r *WalletRepository) ExistsByCampaignID(ctx context.Context, campaignID uuid.UUID) (bool, error) {
+func (r *WalletRepository) ExistsByCampaignID(ctx context.Context, campaignID string) (bool, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&domain.Wallet{}).
