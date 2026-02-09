@@ -31,6 +31,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -63,8 +65,8 @@ public class CampaignServiceImpl implements CampaignService {
 				.images(request.images())
 				.usedAmount(BigDecimal.ZERO)
 				.status(CampaignStatus.PENDING) // Start with PENDING
-				.startDate(request.startDate())
-				.endDate(request.endDate())
+				.startDate(LocalDateTime.now())
+				.endDate(LocalDateTime.now().plusDays(59))
 				.ownerId(userId)
 				.hasUsedQuickWithdrawal(false)
 				.likeCount(0L)
@@ -123,7 +125,8 @@ public class CampaignServiceImpl implements CampaignService {
 			}
 
 			ValidKycResponse validKyc = kycValidation.result();
-			if (!validKyc.isValid()) {
+			log.info("kyc valid: {}", validKyc.isValid());
+			if (validKyc.isValid()==false) {
 				log.warn("KYC not verified for user: {}, status: {}, message: {}", 
 						userId, validKyc.status(), validKyc.message());
 				throw new AppException(ErrorCode.KYC_NOT_VERIFIED);
@@ -154,7 +157,7 @@ public class CampaignServiceImpl implements CampaignService {
 			CreateWalletRequest walletRequest = new CreateWalletRequest(campaignId);
 			ApiResponse<WalletResponse> response = blockchainServiceClient.createWallet(walletRequest);
 
-			if (response.code() != 0 || response.result() == null) {
+			if (response.code() != 1000 || response.result() == null) {
 				log.error("Wallet creation failed: code={}, message={}", response.code(), response.message());
 				// Rollback: delete campaign
 				rollbackCampaign(campaignId, "Wallet creation returned code: " + response.code());

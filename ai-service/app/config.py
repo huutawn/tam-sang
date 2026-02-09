@@ -14,9 +14,29 @@ class Settings(BaseSettings):
     kafka_topic_proof_verification: str = "proof-verification-request"
     kafka_topic_proof_result: str = "proof-verification-result"
     
+    # Hybrid Reasoning Topic
+    kafka_topic_hybrid_reasoning: str = "hybrid-reasoning-request"
+    
     # Gemini API Configuration
     gemini_api_key: str = ""
     enable_gemini_mock: bool = False
+    
+    # Vector Database Configuration (pgvector)
+    vector_db_host: str = "localhost"
+    vector_db_port: int = 5432
+    vector_db_name: str = "tamsang_vector_db"
+    vector_db_user: str = "postgres"
+    vector_db_password: str = "tamsangpswd"
+    
+    # Core Service Callback Configuration
+    core_service_url: str = "http://localhost:8081"
+    callback_endpoint: str = "/api/v1/proof/reasoning"
+    callback_timeout: int = 30  # seconds
+    callback_retry_count: int = 3
+    
+    # CLIP Model Configuration
+    clip_model_name: str = "openai/clip-vit-base-patch32"
+    similarity_threshold: float = 0.85  # For deduplication
     
     # Service Configuration
     log_level: str = "INFO"

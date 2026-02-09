@@ -93,14 +93,11 @@ func main() {
 	router.GET("/health/ready", healthHandler.Ready)
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// API v1 routes
-	v1 := router.Group("/api/v1")
+	// Public API routes
+	files := router.Group("/files")
 	{
-		files := v1.Group("/files")
-		{
-			files.POST("/upload", fileHandler.UploadFile)
-			files.POST("/upload/batch", fileHandler.UploadMultipleFiles)
-		}
+		files.POST("/upload", fileHandler.UploadFile)
+		files.POST("/upload/batch", fileHandler.UploadMultipleFiles)
 	}
 
 	// Create HTTP server

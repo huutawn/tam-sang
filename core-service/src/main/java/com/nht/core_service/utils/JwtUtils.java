@@ -96,7 +96,7 @@ public class JwtUtils {
      * @throws AppException if no authentication is found or token is invalid
      */
     public static String getUserIdFromToken() {
-        String userId = getClaimFromToken("userId");
+        String userId = getClaimFromToken("user_id");
         
         if (userId == null || userId.isEmpty()) {
             log.error("User ID not found in JWT token");

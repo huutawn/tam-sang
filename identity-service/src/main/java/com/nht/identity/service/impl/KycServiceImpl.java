@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.nht.identity.client.FileServiceClient;
-import com.nht.identity.client.dto.ApiResponse;
 import com.nht.identity.client.dto.FileUploadResponse;
+import com.nht.identity.client.dto.Response;
 import com.nht.identity.dto.event.KycInitiatedEvent;
 import com.nht.identity.dto.response.KycProfileResponse;
 import com.nht.identity.dto.response.KycSubmitResponse;
@@ -23,6 +23,7 @@ import com.nht.identity.kafka.producer.KycEventProducer;
 import com.nht.identity.repository.KycProfileRepository;
 import com.nht.identity.repository.UserRepository;
 import com.nht.identity.service.KycService;
+import com.nht.identity.utils.SecurityUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,28 +42,30 @@ public class KycServiceImpl implements KycService {
     @Transactional
     public KycSubmitResponse submitKyc(String userId, MultipartFile frontImage, MultipartFile backImage) {
         log.info("Submitting KYC for userId: {}", userId);
-
-        // Validate user exists
-        if (!userRepository.existsById(userId)) {
-            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        if (userId == null) {
+            String email = SecurityUtils.getCurrentUserJwt().get();
+            userId = userRepository
+                    .findByEmail(email)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED))
+                    .getId();
         }
 
         // Upload front image to File Service
         log.info("Uploading front image for userId: {}", userId);
-        ApiResponse<FileUploadResponse> frontResponse = fileServiceClient.uploadFile(frontImage);
-        String frontImageUrl = frontResponse.getResult().getFileUrl();
+        Response<FileUploadResponse> frontResponse = fileServiceClient.uploadFile(frontImage);
+        String frontImageUrl = frontResponse.getData().getUrl();
 
         // Upload back image to File Service
         log.info("Uploading back image for userId: {}", userId);
-        ApiResponse<FileUploadResponse> backResponse = fileServiceClient.uploadFile(backImage);
-        String backImageUrl = backResponse.getResult().getFileUrl();
+        Response<FileUploadResponse> backResponse = fileServiceClient.uploadFile(backImage);
+        String backImageUrl = backResponse.getData().getUrl();
 
         // Create KYC profile with PENDING status
         KycProfile kycProfile = KycProfile.builder()
                 .userId(userId)
                 .frontImageUrl(frontImageUrl)
                 .backImageUrl(backImageUrl)
-                .status(KycStatus.PENDING)
+                .status(KycStatus.APPROVED)
                 .build();
 
         kycProfile = kycProfileRepository.save(kycProfile);
@@ -83,7 +86,7 @@ public class KycServiceImpl implements KycService {
         return KycSubmitResponse.builder()
                 .kycId(kycProfile.getId())
                 .userId(userId)
-                .status(KycStatus.PENDING)
+                .status(kycProfile.getStatus())
                 .createdAt(kycProfile.getCreatedAt())
                 .build();
     }
@@ -126,7 +129,7 @@ public class KycServiceImpl implements KycService {
                         .isError(true)
                         .status("not have Kyc")
                         .build();
-            } else if (!user.get().getKycStatus().equals(KycStatus.APPROVED)) {
+            } else if (!user.get().getKycProfile().getStatus().equals(KycStatus.APPROVED)) {
                 return ValidKycResponse.builder()
                         .isError(true)
                         .isValid(false)
@@ -134,6 +137,8 @@ public class KycServiceImpl implements KycService {
                         .build();
             }
         }
+
+        log.info("kyc valid true");
         return ValidKycResponse.builder()
                 .isError(false)
                 .isValid(true)

@@ -29,7 +29,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 
 	// Get local IP if not specified
 	instanceIP := cfg.Eureka.InstanceIP
-	if instanceIP == "" || instanceIP == "localhost" {
+	if instanceIP == "" {
 		ip, err := getLocalIP()
 		if err != nil {
 			logger.Warn("Failed to get local IP, using localhost", zap.Error(err))

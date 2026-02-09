@@ -5,8 +5,8 @@ package com.nht.core_service.client.dto;
  */
 public record ValidKycResponse(
     String userId,
-    boolean isValid,
+    Boolean isValid,
     String message,
     String status,
-    boolean isError
+    Boolean isError
 ) {}

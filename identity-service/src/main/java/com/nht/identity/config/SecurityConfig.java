@@ -20,6 +20,7 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
         "/users",
+        "/kyc/**",
         "/users/**",
         "/auth/token",
         "/auth/introspect",

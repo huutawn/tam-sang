@@ -12,9 +12,6 @@ import com.nht.core_service.entity.Donation;
 @Repository
 public interface DonationRepository extends JpaRepository<Donation, UUID> {
 
-	List<Donation> findByCampaignIdOrderByCreatedAtDesc(String campaignId);
-
-	Optional<Donation> findByPayosTransactionId(String payosTransactionId);
 
 	Optional<Donation> findByPaymentCode(String paymentCode);
 

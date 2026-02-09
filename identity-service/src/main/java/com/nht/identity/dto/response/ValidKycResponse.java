@@ -11,8 +11,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ValidKycResponse {
     private String userId;
-    private boolean isValid;
+    private Boolean isValid;
     private String message;
     private String status;
-    private boolean isError;
+    private Boolean isError;
 }

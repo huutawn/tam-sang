@@ -1,40 +1,45 @@
 package com.nht.core_service.service.impl;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import org.apache.commons.codec.digest.DigestUtils;
+import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nht.core_service.config.KafkaTopicConfig;
 import com.nht.core_service.document.Campaign;
+import com.nht.core_service.document.ProcessEvent;
 import com.nht.core_service.dto.event.DonationEvent;
+import com.nht.core_service.dto.request.DonationCompleteRequest;
 import com.nht.core_service.dto.request.InitDonationRequest;
 import com.nht.core_service.dto.request.PaymentWebhookRequest;
+import com.nht.core_service.dto.websocket.CampaignActivityMessage;
+import com.nht.core_service.dto.websocket.CampaignStatsMessage;
 import com.nht.core_service.entity.Donation;
-import com.nht.core_service.entity.Transaction;
-import com.nht.core_service.entity.Wallet;
 import com.nht.core_service.enums.PaymentStatus;
-import com.nht.core_service.enums.TransactionStatus;
-import com.nht.core_service.enums.TransactionType;
 import com.nht.core_service.exception.AppException;
 import com.nht.core_service.exception.ErrorCode;
 import com.nht.core_service.repository.jpa.DonationRepository;
-import com.nht.core_service.repository.jpa.TransactionRepository;
 import com.nht.core_service.repository.mongodb.CampaignRepository;
+import com.nht.core_service.repository.mongodb.ProcessEventRepository;
 import com.nht.core_service.service.DonationService;
-import com.nht.core_service.service.WalletService;
+import com.nht.core_service.service.WebSocketService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import vn.payos.PayOS;
 import vn.payos.type.CheckoutResponseData;
-import vn.payos.type.PaymentData;
 
 @Service
 @RequiredArgsConstructor
@@ -44,16 +49,20 @@ public class DonationServiceImpl implements DonationService {
 	private final DonationRepository donationRepository;
 	private final CampaignRepository campaignRepository;
 	private final KafkaTemplate<String, Object> kafkaTemplate;
-	private final PayOS payOS;
+	private final MongoTemplate mongoTemplate;
+	private final RedisTemplate<String, Long> redisTemplate;
+	private final WebSocketService webSocketService;
+	private final ProcessEventRepository processEventRepository;
+
 	@Value("${secret-key}")
+	@NonFinal
 	private String secretKey;
 	private static final String BANK_ID = "970422"; // VietQR MB Bank
 	private static final String ACCOUNT_NO = "0962974546"; // Example account
-	private static final String ACCOUNT_NAME = "TAM SANG CHARITY";
 
 	@Override
 	@Transactional
-	public CheckoutResponseData initializeDonation(InitDonationRequest request) {
+	public String initializeDonation(InitDonationRequest request) {
 		// Verify campaign exists
 		Campaign campaign = campaignRepository
 				.findById(request.campaignId())
@@ -63,7 +72,6 @@ public class DonationServiceImpl implements DonationService {
 		if (request.amount().compareTo(remaining) > 0) {
 			amount=remaining;
 		}
-		// Generate unique payment code
 		String paymentCode = generatePaymentCode();
 
 		// Create donation with PENDING status
@@ -81,46 +89,35 @@ public class DonationServiceImpl implements DonationService {
 		log.info("Donation initialized: id={}, paymentCode={}", savedDonation.getId(), paymentCode);
 
 		// Generate VietQR URL
-		PaymentData paymentData = PaymentData.builder()
-				.orderCode(System.currentTimeMillis())
-				.amount(Integer.parseInt(amount.toString()))
-				.description(request.message())
-				.returnUrl("http://localhost:3000/success") // URL khi khách trả tiền xong
-				.cancelUrl("http://localhost:3000/cancel") //
-				.build();
-		try {
-			return payOS.createPaymentLink(paymentData);
-		} catch (Exception e) {
-			e.printStackTrace();
-			return null;
-		}
+		String url=generateQRCodeUrl(amount,paymentCode,campaign.getTitle());
+		return url;
 	}
-	private String calculateHash(String previousHash, String amount, String walletId, String timestamp){
-		StringBuilder dataToHash = new StringBuilder();
-		dataToHash.append(previousHash);
-		dataToHash.append(amount);
-		dataToHash.append(walletId);
-		dataToHash.append(timestamp);
-		dataToHash.append(secretKey);
-		String sha256hex = DigestUtils.sha256Hex(dataToHash.toString());
-		return sha256hex;
-	}
+
 
 
 	@Override
 	@Transactional
 	public void processPaymentWebhook(PaymentWebhookRequest request) {
+		String content =request.content();
+		Pattern pattern = Pattern.compile("\\. (TS\\d{13}[A-Z0-9]{6}) \\.");
+		Matcher matcher = pattern.matcher(content);
+		if(matcher.find()){
+			content=matcher.group(1);
+		}
+		else{
+			throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+		}
 		// Find donation by payment code
 		Donation donation = donationRepository
-				.findByPaymentCode(request.paymentCode())
+				.findByPaymentCode(content)
 				.orElseThrow(() -> new AppException(ErrorCode.DONATION_NOT_FOUND));
 
 		// Validate amount
-		if (donation.getAmount().compareTo(request.amount()) != 0) {
+		if (donation.getAmount().compareTo(request.transferAmount()) != 0) {
 			log.error(
 					"Payment amount mismatch: expected={}, received={}",
 					donation.getAmount(),
-					request.amount());
+					request.transferAmount());
 			throw new AppException(ErrorCode.INVALID_DONATION_AMOUNT);
 		}
 
@@ -130,41 +127,6 @@ public class DonationServiceImpl implements DonationService {
 			return;
 		}
 
-		// Update donation status
-		donation.setPaymentStatus(PaymentStatus.COMPLETED);
-		donationRepository.save(donation);
-		log.info("Donation completed: id={}, amount={}", donation.getId(), donation.getAmount());
-
-		// Get wallet and create transaction
-		Wallet wallet = walletService.getWalletByCampaignId(donation.getCampaignId());
-
-		Transaction transaction = Transaction.builder()
-				.wallet(wallet)
-				.amount(donation.getAmount())
-				.type(TransactionType.DEPOSIT)
-				.status(TransactionStatus.COMPLETED)
-				.description("Donation from " + donation.getDonorFullName())
-				.timestamp(LocalDateTime.now())
-				.build();
-		Optional<Transaction> firstTransaction = transactionRepository.findTopByOrderByTimestampDesc();
-
-		if(firstTransaction.isEmpty()){
-			transaction.setPreviousHash("firsHash1290034u1dbf");
-		}else{
-			transaction.setPreviousHash(firstTransaction.get().getHash());
-		}
-		String hash = calculateHash(transaction.getPreviousHash(),transaction.getAmount().toString(),transaction.getWallet().getId().toString(),transaction.getTimestamp().toString());
-		transaction.setHash(hash);
-
-		Transaction savedTransaction = transactionRepository.save(transaction);
-		log.info("Transaction created: id={}, amount={}", savedTransaction.getId(), savedTransaction.getAmount());
-
-		// Update wallet balance
-		walletService.updateBalance(wallet.getId(), donation.getAmount());
-
-		// Link transaction to donation
-		donation.setTransaction(savedTransaction);
-		donationRepository.save(donation);
 
 		// Publish event to Kafka
 		DonationEvent event = new DonationEvent(donation.getId(),
@@ -172,6 +134,66 @@ public class DonationServiceImpl implements DonationService {
 
 		kafkaTemplate.send(KafkaTopicConfig.DONATION_EVENTS_TOPIC, event);
 		log.info("Published donation event to Kafka: campaignId={}", donation.getCampaignId());
+	}
+
+	@Override
+	@Transactional
+	public void completeDonation(DonationCompleteRequest request) {
+		log.info("Completing donation from blockchain callback: donationId={}, campaignId={}", 
+				request.donationId(), request.campaignId());
+
+		// Idempotency check
+		if (processEventRepository.existsById(request.donationId())) {
+			log.warn("Donation already completed, skipping: {}", request.donationId());
+			return;
+		}
+
+		// Update donation status to COMPLETED
+		UUID donationId = UUID.fromString(request.donationId());
+		Donation donation = donationRepository.findById(donationId)
+				.orElseThrow(() -> new AppException(ErrorCode.DONATION_NOT_FOUND));
+
+		donation.setPaymentStatus(PaymentStatus.COMPLETED);
+		donation.setBlockchainTxHash(request.transactionHash());
+		donationRepository.save(donation);
+
+		// Update MongoDB Campaign.currentAmount atomically
+		Query query = new Query(Criteria.where("id").is(request.campaignId()));
+		Update update = new Update().inc("currentAmount", request.amount().doubleValue());
+		mongoTemplate.updateFirst(query, update, Campaign.class);
+		log.info("Updated MongoDB campaign currentAmount: campaignId={}", request.campaignId());
+
+		// Update Redis cache if exists
+		String cacheKey = "campaign:" + request.campaignId() + ":amount";
+		if (Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey))) {
+			redisTemplate.opsForValue().increment(cacheKey, request.amount().longValue());
+			log.info("Updated Redis cache: key={}", cacheKey);
+		}
+
+		// Send WebSocket notifications
+		Campaign campaign = campaignRepository.findById(request.campaignId()).orElse(null);
+		if (campaign != null) {
+			Long donationCount = donationRepository.countByCampaignId(request.campaignId());
+
+			// Send campaign stats update
+			CampaignStatsMessage statsMessage = new CampaignStatsMessage(
+					request.campaignId(), campaign.getCurrentAmount(), donationCount, request.donorName());
+			webSocketService.sendCampaignStats(statsMessage);
+
+			// Send activity notification
+			String description = String.format(
+					"%s đã ủng hộ %s VND", request.donorName(), request.amount().longValue());
+			CampaignActivityMessage activityMessage = new CampaignActivityMessage(
+					request.campaignId(), "DONATION", description, Instant.now().toString());
+			webSocketService.sendCampaignActivity(activityMessage);
+
+			log.info("Sent WebSocket notifications for campaign: {}", request.campaignId());
+		}
+
+		// Mark event as processed
+		processEventRepository.save(new ProcessEvent(request.donationId(), LocalDateTime.now()));
+		log.info("Donation completed successfully: donationId={}, txHash={}", 
+				request.donationId(), request.transactionHash());
 	}
 
 	private String generatePaymentCode() {
@@ -190,3 +212,4 @@ public class DonationServiceImpl implements DonationService {
 				BANK_ID, ACCOUNT_NO, amount.longValue(), encodedDescription);
 	}
 }
+

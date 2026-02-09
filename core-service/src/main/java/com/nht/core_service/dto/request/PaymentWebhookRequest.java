@@ -7,5 +7,15 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 public record PaymentWebhookRequest(
-		@NotBlank(message = "Payment code is required") String paymentCode,
-		@NotNull @Positive(message = "Amount must be greater than 0") BigDecimal amount) {}
+		@NotNull String id,
+		String gateway,
+		String transactionDate,
+		String accountNumber,
+		String code,
+		String content,
+		String transferType,
+		BigDecimal transferAmount,
+		String accumulated,
+		String subAccount,
+		String referenceCode,
+		String description) {}

@@ -34,9 +34,7 @@ public class Donation {
 	@Column(name = "campaign_id", nullable = false)
 	private String campaignId;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "transaction_id")
-	private Transaction transaction;
+
 
 	@Column(name = "donor_full_name", nullable = false)
 	private String donorFullName;
@@ -75,6 +73,9 @@ public class Donation {
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
+
+	@Column(name = "blockchain_tx_hash")
+	private String blockchainTxHash;
 
 	@PrePersist
 	protected void onCreate() {

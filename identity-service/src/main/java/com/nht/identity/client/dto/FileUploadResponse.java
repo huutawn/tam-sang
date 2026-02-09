@@ -8,9 +8,11 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FileUploadResponse {
-    private String fileId;
-    private String fileName;
-    private String fileUrl;
-    private Long fileSize;
-    private String mimeType;
+    private String file_id;
+    private String url;
+    private String filename;
+    private int size;
+    private String contentType;
+    private String checksum;
+    private String uploaded_at;
 }

@@ -9,7 +9,7 @@ spring:
   
   # PostgreSQL Configuration (Transaction Database)
   datasource:
-    jdbc-url: jdbc:postgresql://localhost:5432/transaction
+    jdbc-url: jdbc:postgresql://localhost:5432/core
     driver-class-name: org.postgresql.Driver
     username: postgres
     password: ${POSTGRES_PW}

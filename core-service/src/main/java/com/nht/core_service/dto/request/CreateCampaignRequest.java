@@ -14,5 +14,4 @@ public record CreateCampaignRequest(
 		@NotNull @Positive BigDecimal targetAmount,
 		List<String> images,
 		LocalDateTime startDate,
-		LocalDateTime endDate,
-		@NotBlank String ownerId) {}
+		LocalDateTime endDate) {}

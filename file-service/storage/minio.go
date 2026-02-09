@@ -73,6 +73,30 @@ func (s *MinioStorage) ensureBucket(ctx context.Context) error {
 		logger.Info("Created new bucket", zap.String("bucket", s.config.Bucket))
 	}
 
+	// Set public read policy for the bucket
+	policy := fmt.Sprintf(`{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Effect": "Allow",
+				"Principal": {"AWS": ["*"]},
+				"Action": ["s3:GetBucketLocation", "s3:ListBucket"],
+				"Resource": ["arn:aws:s3:::%s"]
+			},
+			{
+				"Effect": "Allow",
+				"Principal": {"AWS": ["*"]},
+				"Action": ["s3:GetObject"],
+				"Resource": ["arn:aws:s3:::%s/*"]
+			}
+		]
+	}`, s.config.Bucket, s.config.Bucket)
+
+	err = s.client.SetBucketPolicy(ctx, s.config.Bucket, policy)
+	if err != nil {
+		return fmt.Errorf("failed to set bucket policy: %w", err)
+	}
+
 	return nil
 }
 
@@ -112,12 +136,10 @@ func (s *MinioStorage) UploadFile(ctx context.Context, file *multipart.FileHeade
 
 	// Generate unique file ID
 	fileID := uuid.New().String()
-
-	// Create object name with date-based path: YYYY/MM/DD/uuid_filename
 	now := time.Now()
-	objectName := fmt.Sprintf("%d/%02d/%02d/%s_%s",
-		now.Year(), now.Month(), now.Day(),
-		fileID, sanitizedFilename)
+
+	// Create object name with UUID as a folder: uuid/filename
+	objectName := fmt.Sprintf("%s/%s", fileID, sanitizedFilename)
 
 	// Upload to Minio
 	_, err = s.client.PutObject(ctx, s.config.Bucket, objectName, src, file.Size, minio.PutObjectOptions{

@@ -8,8 +8,10 @@ from kafka.errors import KafkaError
 from app.config import settings
 from app.models.events import KycInitiatedEvent, KycAnalyzedEvent
 from app.models.proof_events import ProofVerificationRequest, ProofVerificationResult
+from app.models.hybrid_events import HybridReasoningRequest
 from app.services.ocr_service import ocr_service
 from app.kafka.proof_handler import proof_verification_handler
+from app.services.hybrid_reasoning import hybrid_reasoning_service
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,8 @@ class KycKafkaConsumer:
             # Subscribe to multiple topics
             topics = [
                 settings.kafka_topic_verification,  # KYC verification
-                settings.kafka_topic_proof_verification  # Proof verification
+                settings.kafka_topic_proof_verification,  # Proof verification
+                settings.kafka_topic_hybrid_reasoning  # Hybrid reasoning (CLIP + Gemini)
             ]
             logger.info(f"Starting Kafka consumer for topics: {topics}")
 
@@ -85,6 +88,11 @@ class KycKafkaConsumer:
                         # Proof verification workflow (new)
                         logger.info(f"Received ProofVerificationRequest: {event_data.get('proofId')}")
                         asyncio.run(self.process_proof_event(event_data))
+                        
+                    elif topic == settings.kafka_topic_hybrid_reasoning:
+                        # Hybrid reasoning workflow (CLIP + Gemini)
+                        logger.info(f"Received HybridReasoningRequest: {event_data.get('proof_id')}")
+                        asyncio.run(self.process_hybrid_reasoning_event(event_data))
                     else:
                         logger.warning(f"Unknown topic: {topic}")
 
@@ -194,6 +202,39 @@ class KycKafkaConsumer:
         except KafkaError as e:
             logger.error(f"Failed to publish ProofVerificationResult for proofId: {event.proofId}: {e}")
             raise
+    
+    async def process_hybrid_reasoning_event(self, event_data: dict):
+        """
+        Process hybrid reasoning event (CLIP + Gemini)
+        
+        This handler combines:
+        - CLIP (Local AI): Scene image relevance & deduplication
+        - Gemini (Remote AI): Bill analysis & price validation
+        
+        Results are sent via HTTP callback to Core-service
+        """
+        proof_id = event_data.get('proof_id', 'unknown')
+        try:
+            logger.info(f"Processing hybrid reasoning for proof_id: {proof_id}")
+            
+            # Parse request
+            request = HybridReasoningRequest(**event_data)
+            
+            # Process with hybrid reasoning service
+            # This internally handles:
+            # 1. CLIP analysis for scene images
+            # 2. Gemini analysis for bill images
+            # 3. Score computation
+            # 4. HTTP callback to Core-service
+            result = await hybrid_reasoning_service.process(request)
+            
+            logger.info(
+                f"Hybrid reasoning complete for proof_id: {proof_id}, "
+                f"trust_score: {result.trust_score}, is_valid: {result.is_valid}"
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to process hybrid reasoning event for proof_id {proof_id}: {e}", exc_info=True)
 
     def stop(self):
         """Stop Kafka consumer"""

@@ -22,7 +22,6 @@ public class WebhookController {
 
 	@PostMapping("/payment")
 	public ResponseEntity<ApiResponse<Void>> handlePaymentWebhook(@Valid @RequestBody PaymentWebhookRequest request) {
-		log.info("Received payment webhook: paymentCode={}, amount={}", request.paymentCode(), request.amount());
 
 		donationService.processPaymentWebhook(request);
 

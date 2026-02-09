@@ -1,6 +1,5 @@
 package com.nht.identity.controller;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import org.springframework.http.MediaType;
@@ -17,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("kyc")
+@RequestMapping("/kyc")
 @RequiredArgsConstructor
 @Slf4j
 public class KycController {
@@ -26,7 +25,7 @@ public class KycController {
 
     @PostMapping(value = "/submit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<KycSubmitResponse> submitKyc(
-            @RequestParam("userId") @NotBlank String userId,
+            @RequestParam("userId") String userId,
             @RequestPart("frontImage") @NotNull MultipartFile frontImage,
             @RequestPart("backImage") @NotNull MultipartFile backImage) {
 

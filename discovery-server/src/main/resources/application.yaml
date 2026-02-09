@@ -6,6 +6,9 @@ spring:
     name: discovery-server
 
 eureka:
+  server:
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 2000
   client:
     register-with-eureka: false
     fetch-registry: false

@@ -1,11 +1,48 @@
 -- Initialize databases for Tam Sang ecosystem
--- This script creates two databases: identity and transaction
+-- This script creates databases: identity, transaction, and tamsang_vector_db
 
 -- Create identity database for identity-service
 CREATE DATABASE identity;
 
 -- Create transaction database for core-service  
 CREATE DATABASE transaction;
+CREATE DATABASE blockchain;
+CREATE DATABASE core;
+
+-- Create vector database for AI embeddings (CLIP, etc.)
+CREATE DATABASE tamsang_vector_db;
+
+-- ============================================
+-- Initialize tamsang_vector_db
+-- ============================================
+\c tamsang_vector_db
+
+-- Enable pgvector extension for vector similarity search
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Create proof_embeddings table for storing CLIP embeddings
+-- Used for image deduplication and cross-modal retrieval
+CREATE TABLE IF NOT EXISTS proof_embeddings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    campaign_id UUID NOT NULL,
+    image_url TEXT NOT NULL,
+    embedding vector(512) NOT NULL,  -- CLIP ViT-B/32 output dimension
+    perceptual_hash TEXT,            -- For fast duplicate detection
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create IVFFlat index for fast approximate nearest neighbor search
+-- Lists = 100 is recommended for datasets up to 1M vectors
+CREATE INDEX idx_proof_embeddings_vector ON proof_embeddings 
+    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+CREATE INDEX idx_proof_embeddings_campaign ON proof_embeddings(campaign_id);
+CREATE INDEX idx_proof_embeddings_hash ON proof_embeddings(perceptual_hash);
+
+COMMENT ON TABLE proof_embeddings IS 'Stores CLIP embeddings for proof images - used for deduplication and cross-modal retrieval';
+COMMENT ON COLUMN proof_embeddings.embedding IS 'CLIP ViT-B/32 embedding vector (512 dimensions)';
+
+SELECT 'Vector database tamsang_vector_db initialized successfully!' AS status;
 
 -- Connect to transaction database to create tables
 \c transaction
