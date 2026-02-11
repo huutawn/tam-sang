@@ -1,196 +1,105 @@
-# Tâm Sáng (Tam Sang Charity Ecosystem)
+# Tâm Sáng - Nền Tảng Từ Thiện Mở & Minh Bạch 💝
 
-![Banner Placeholder](https://via.placeholder.com/1200x300?text=Tam+Sang+Charity+Ecosystem+-+Transparency+through+Technology)
+**Tâm Sáng** là một hệ thống platform từ thiện hiện đại, minh bạch và tin cậy, ứng dụng công nghệ **Blockchain** để công khai mọi giao dịch và **AI** để tự động xác minh bằng chứng giải ngân.
 
-[![Java](https://img.shields.io/badge/Java-21-orange?style=flat-square&logo=openjdk)](https://www.java.com/)
-[![Go](https://img.shields.io/badge/Go-1.22-blue?style=flat-square&logo=go)](https://go.dev/)
-[![Python](https://img.shields.io/badge/Python-3.11-yellow?style=flat-square&logo=python)](https://www.python.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-blue?style=flat-square&logo=docker)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+![Tam Sang Architecture](https://via.placeholder.com/1200x600?text=Microservices+Architecture:+Java+Spring+Cloud,+Go,+Python+AI)
 
-## 🌟 Introduction
+## 🚀 Tính Năng Nổi Bật
 
-**Trust is the currency of charity.** In an era where skepticism hinders generosity, **Tâm Sáng** restores faith through radical transparency and technology. 
+### 1. Minh Bạch Tuyệt Đối (Blockchain) 🔗
+- Mọi giao dịch quyên góp đều được ghi nhận trên **Hash-Chain** nội bộ (tương tự Blockchain).
+- Mỗi chiến dịch có một **Ví (Wallet)** riêng biệt, công khai số dư, tổng thu/chi.
+- Người dùng có thể tự kiểm toán (audit) toàn bộ lịch sử dòng tiền, đảm bảo tính toàn vẹn dữ liệu.
+- Ký hợp đồng điện tử (Digital Signature) giữa tổ chức và hệ thống.
 
-We are building a decentralized, transparent charity platform that leverages **Real-time Auditing**, **AI-assisted Verification**, and **Legally Binding** workflows to ensure every donation reaches its intended destination. By combining the robustness of Java enterprise systems, the performance of Go, and the intelligence of Python AI agents, Tâm Sáng creates an immutable chain of trust from donor to beneficiary.
+### 2. Xác Minh Tự Động (AI Hybird Reasoning) 🤖
+- **OCR (PaddleOCR)**: Tự động trích xuất thông tin CMND/CCCD để eKYC.
+- **Face Verification (DeepFace)**: Xác minh khuôn mặt chủ tài khoản với giấy tờ tùy thân.
+- **Proof Check (CLIP + Gemini)**: Phân tích hóa đơn, hình ảnh giải ngân để xác định xem tiền có được dùng đúng mục đích cam kết hay không.
+    - Phát hiện hóa đơn trùng lặp / giả mạo.
+    - Đối chiếu các mặt hàng trong hóa đơn với mô tả chiến dịch.
+
+### 3. Quyên Góc Dễ Dàng & Real-time ⚡
+- Tích hợp cổng thanh toán **PayOS** (QR Code).
+- Thông báo thời gian thực (Real-time updates) qua **WebSocket** khi có quyên góp mới.
+- Dashboard theo dõi tiến độ chiến dịch trực quan.
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ Kiến Trúc Hệ Thống (Microservices)
 
-Tâm Sáng utilizes a **Polyglot Microservices Architecture** to leverage the best tool for each specific domain. The system is event-driven, ensuring high scalability and decoupled interactions.
+Hệ thống được xây dựng theo kiến trúc Microservices, bao gồm 5 services chính và các thành phần hạ tầng:
 
-```mermaid
-graph TD
-    Client[Web / Mobile Client] -->|HTTPS| Gateway[API Gateway]
-    
-    subgraph "Core Services Layer"
-        Gateway -->|Auth/User| Identity[Identity Service]
-        Gateway -->|Campaigns| Campaign[Campaign Service]
-        Gateway -->|Transactions| Payment[Payment Service]
-        Gateway -->|Media| File[File Service]
-        Gateway -->|Analysis| AI[AI Service]
-    end
-    
-    subgraph "Data & Infra Layer"
-        Identity --> PostgreSQL_ID[(PostgreSQL)]
-        Campaign --> MongoDB[(MongoDB)]
-        Campaign --> Redis_Search[(Redis Stack)]
-        Payment --> PostgreSQL_Pay[(PostgreSQL)]
-        File --> MinIO[(MinIO Object Storage)]
-        AI --> OCR_Engine[OCR / Face Models]
-    end
-    
-    subgraph "Event Backbone"
-        Identity -.->|User Events| Kafka{Apache Kafka}
-        Campaign -.->|Campaign Events| Kafka
-        Payment -.->|Tx Events| Kafka
-        AI -.->|Audit Results| Kafka
-        
-        Kafka -.->|Consume| Notification[Notification Service]
-        Kafka -.->|Consume| Audit[Audit Log Service]
-    end
+| Service | Vai Trò | Công Nghệ Chính |
+|---------|---------|-----------------|
+| **Core Service** | Quản lý nghiệp vụ chính: Chiến dịch, Quyên góp, Rút tiền, Proof | **Java 21**, Spring Boot 3.5, PostgreSQL, MongoDB, Kafka, Redis |
+| **Identity Service** | Quản lý người dùng, Auth (JWT), eKYC flow | **Java 21**, Spring Boot 3.5, PostgreSQL, Keycloak |
+| **Blockchain Service** | Quản lý sổ cái (Ledger), Ví, Ký số, Audit log | **Go 1.21**, Gin, GORM, PostgreSQL |
+| **File Service** | Lưu trữ và xử lý file, hình ảnh an toàn | **Go 1.21**, Gin, MinIO (S3 compatible) |
+| **AI Service** | OCR, Face Match, Phân tích ngữ nghĩa (Reasoning) | **Python 3.10**, FastAPI, PaddleOCR, DeepFace, Gemini API, ChromaDB |
 
-    classDef java fill:#e67e22,stroke:#333,stroke-width:2px,color:white;
-    classDef go fill:#3498db,stroke:#333,stroke-width:2px,color:white;
-    classDef python fill:#f1c40f,stroke:#333,stroke-width:2px,color:black;
-    classDef infra fill:#95a5a6,stroke:#333,stroke-width:1px,color:white;
-    
-    class Identity,Campaign,Payment java;
-    class File go;
-    class AI python;
-    class Kafka,Redis_Search,PostgreSQL_ID,MongoDB,MinIO,Gateway infra;
+### Hạ Tầng & DevOps
+- **Service Discovery**: Netflix Eureka
+- **API Gateway**: Spring Cloud Gateway (Single Entry Point)
+- **Config Server**: Spring Cloud Config (Quản lý cấu hình tập trung)
+- **Message Broker**: Apache Kafka (Event-driven architecture)
+- **Caching**: Redis
+- **Containerization**: Docker & Docker Compose
+
+---
+
+## 🛠️ Cài Đặt & Chạy Dự Án
+
+### Yêu cầu tiên quyết
+- Docker & Docker Compose
+- JDK 21
+- Python 3.10+
+- Go 1.21+
+
+### Bước 1: Khởi tạo hạ tầng
+Chạy các container cơ sở dữ liệu và message broker:
+```bash
+docker-compose up -d postgres-tamsang mongodb redis kafka minio kafka-ui
 ```
 
-### Technical Highlights
+### Bước 2: Cấu hình môi trường
+Tạo các file `.env` từ `.env.example` trong từng thư mục service:
+- `core-service/.env`
+- `identity-service/.env`
+- `ai-service/.env` (Cần GEMINI_API_KEY)
+- `file-service/.env`
 
-*   **⚡ High-Performance File Uploads (Presigned URLs):** To minimize load on our backend, the **File Service (Go)** generates secure, time-limited Presigned URLs via MinIO. Clients upload large evidence files directly to object storage, ensuring low latency and scalability.
-*   **🔄 Event-Driven Architecture:** We rely on **Apache Kafka** for asynchronous communication between services. This decouple critical flows like "Campaign Created" triggering "AI Audit" or "Donation Received" triggering "Real-time Statement Updates," ensuring system improved resilience and responsiveness.
+### Bước 3: Khởi chạy Microservices
+Thứ tự khởi chạy khuyến nghị:
+1. `discovery-server` (Port 8761)
+2. `config-server` (Port 8888)
+3. `api-gateway` (Port 8080)
+4. `identity-service` & `file-service`
+5. `core-service` & `blockchain-service`
+6. `ai-service`
 
----
-
-## 🚀 Key Features
-
-### 🛡️ Identity & Security
-*   **eKYC Verification:** Integration of **Face Matching** and liveness detection to verify user identity against government-issued IDs.
-*   **Online Contracts:** legally binding digital agreements between campaigners and the platform.
-*   **Blacklist System:** Automated detection and blocking of fraudulent actors.
-
-### 💰 Transparent Finance
-*   **Dedicated Wallets:** Unique banking identifiers for each campaign to prevent fund commingling.
-*   **Real-time Statements:** Instant public visualization of all incoming donations and outgoing withdrawals.
-*   **Multi-tier Withdrawal:** 
-    *   *Standard:* Requires full invoice, audit approval.
-    *   *Emergency:* Restricted, fast-track flow for urgent needs.
-
-### 🤖 AI Agent & Automation
-*   **Fraud Detection:** Analysis of campaign evidence images to detect Photoshop/manipulation.
-*   **Smart OCR:** Automated extraction of data from invoices and receipts.
-*   **Context Verification:** Comparison of invoice line items against the campaign's stated purpose (e.g., flagging "Beer" in a "School Supplies" campaign).
-
-### 🔄 Human-in-the-Loop Workflow
-1.  **Submission:** Campaigner submits request/evidence.
-2.  **AI Audit:** System performs preliminary checks (OCR, Fraud detection).
-3.  **Human Review:** Admins make final decisions based on AI recommendations.
+### Bước 4: Truy cập
+- **API Gateway**: `http://localhost:8080`
+- **Eureka Dashboard**: `http://localhost:8761`
+- **Kafka UI**: `http://localhost:8081`
+- **MinIO Console**: `http://localhost:9001`
+- **Frontend**: Chạy riêng tại thư mục `tamsang-fe`
 
 ---
 
-## 💻 Tech Stack
+## 📚 Tài Liệu API
 
-| Domain | Technology | Description |
-| :--- | :--- | :--- |
-| **Frontend** | ![Next.js](https://img.shields.io/badge/-Next.js_16-black) ![TypeScript](https://img.shields.io/badge/-TypeScript-blue) ![Tailwind](https://img.shields.io/badge/-Tailwind_v4-38b2ac) | App Router, Shadcn/ui (Purple Theme), Zustand, Radix UI. |
-| **Identity Service** | ![Spring Boot](https://img.shields.io/badge/-Spring_Boot_3-6db33f) | User Management, OAuth2/JWT Orchestrator. |
-| **Campaign Service** | ![Spring Boot](https://img.shields.io/badge/-Spring_Boot_3-6db33f) ![MongoDB](https://img.shields.io/badge/-MongoDB-47a248) ![Redis](https://img.shields.io/badge/-Redis_Stack-dc382d) | Campaign Logic, RediSearch for high-speed definition. |
-| **Payment Service** | ![Spring Boot](https://img.shields.io/badge/-Spring_Boot_3-6db33f) ![PostgreSQL](https://img.shields.io/badge/-PostgreSQL-336791) | Transaction Ledger, Wallet Management. |
-| **File Service** | ![Go](https://img.shields.io/badge/-Go-00add8) ![MinIO](https://img.shields.io/badge/-MinIO-c72c48) | **Presigned URL** generation, Media Management. |
-| **AI Service** | ![FastAPI](https://img.shields.io/badge/-FastAPI-009688) ![Python](https://img.shields.io/badge/-Python-3776ab) | OCR (Tesseract/Google Vision), OpenCV, PyTorch. |
-| **Infrastructure** | ![Docker](https://img.shields.io/badge/-Docker-2496ed) ![Kafka](https://img.shields.io/badge/-Kafka-231f20) | Containerization, Event Streaming. |
+| Service | Tài Liệu (Swagger/OpenAPI) | URL Cục Bộ (Direct) |
+|---------|----------------------------|---------------------|
+| **Core** | `/core/v3/api-docs` | `http://localhost:8081/swagger-ui.html` |
+| **Identity** | `/identity/v3/api-docs` | `http://localhost:8082/swagger-ui.html` |
+| **Blockchain** | `/blockchain/docs` | `http://localhost:8083/swagger/index.html` |
+| **AI** | `/ai/docs` | `http://localhost:8084/docs` |
 
 ---
 
-## 🛠️ Getting Started
-
-Follow these steps to set up the development environment locally.
-
-### Prerequisites
-*   **Docker Desktop** (running)
-*   **Java 21 (JDK)**
-*   **Go 1.22+**
-*   **Python 3.11+**
-*   **Node.js 20+**
-
-### Installation
-
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/your-org/tam-sang-ecosystem.git
-    cd tam-sang-ecosystem
-    ```
-
-2.  **Start Infrastructure**
-    Launch the core infrastructure (Databases, Broker, Cache) in detached mode:
-    ```bash
-    docker-compose up -d
-    ```
-
-3.  **Run Microservices** (Terminal multiplexer or separate tabs recommended)
-    
-    *   **Identity Service:**
-        ```bash
-        cd identity-service && ./mvnw spring-boot:run
-        ```
-    *   **Campaign Service:**
-        ```bash
-        cd campaign-service && ./mvnw spring-boot:run
-        ```
-    *   **File Service:**
-        ```bash
-        cd file-service && go run main.go
-        ```
-    *   **AI Service:**
-        ```bash
-        cd ai-service && uvicorn app.main:app --reload
-        ```
-
-4.  **Run Frontend**
-    ```bash
-    cd fe/tam-sang-frontend
-    npm install
-    npm run dev
-    ```
-
-Access the application at `http://localhost:3000`.
-
----
-
-## 📱 Screenshots
-
-| Landing Page | Campaign Dashboard | Mobile View |
-|:---:|:---:|:---:|
-| ![Landing](https://via.placeholder.com/300x200?text=Landing+Page) | ![Dashboard](https://via.placeholder.com/300x200?text=Dashboard) | ![Mobile](https://via.placeholder.com/150x300?text=Mobile+App) |
-
----
-
-## 🗺️ Roadmap
-
-- [ ] **Phase 1:** Core Campaign & Donation Flow (MVP)
-- [ ] **Phase 2:** AI Agent integration for automatic receipt parsing
-- [ ] **Phase 3:** Blockchain integration for immutable audit logs (Hyperledger/Ethereum)
-- [ ] **Phase 4:** Mobile App (React Native/Flutter)
-
----
+## 🤝 Đóng Góp
+Dự án được phát triển bởi **Hữu Tân (huutawn)** và cộng sự. Mọi đóng góp vui lòng tạo Pull Request hoặc Open Issue.
 
 ## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👥 Author
-
-**Capstone Team**  
-*Lead Maintainer:* [Your Name]
-
----
-
-*Built with ❤️ for a better, more transparent world.*
+MIT License.
