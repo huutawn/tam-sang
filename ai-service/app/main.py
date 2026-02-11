@@ -28,9 +28,25 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
+    # Shutdown — release all long-lived resources
     logger.info("Shutting down AI service...")
     kafka_consumer.stop()
+
+    # Close Vector DB connection pool (BUG-10 fix)
+    try:
+        from app.services.vector_db import vector_db_service
+        await vector_db_service.close()
+        logger.info("Vector DB connection pool closed")
+    except Exception as e:
+        logger.warning("Error closing Vector DB pool: %s", e)
+
+    # Close Hybrid Reasoning httpx client (BUG-10 fix)
+    try:
+        from app.services.hybrid_reasoning import hybrid_reasoning_service
+        await hybrid_reasoning_service.close()
+        logger.info("Hybrid reasoning HTTP client closed")
+    except Exception as e:
+        logger.warning("Error closing hybrid reasoning client: %s", e)
 
 
 app = FastAPI(
@@ -61,3 +77,4 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8084)
+

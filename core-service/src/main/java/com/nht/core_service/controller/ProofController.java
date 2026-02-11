@@ -9,10 +9,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.nht.core_service.dto.request.HybridReasoningCallbackRequest;
 import com.nht.core_service.dto.response.ApiResponse;
 import com.nht.core_service.dto.response.ProofResponse;
 import com.nht.core_service.service.ProofService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,5 +59,33 @@ public class ProofController {
 		log.info("Getting proofs for withdrawal: {}", withdrawalId);
 		List<ProofResponse> proofs = proofService.getProofsByWithdrawalId(withdrawalId);
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Proofs retrieved successfully", proofs));
+	}
+	
+	// ------------------------------------------------------------------
+	// Internal callback endpoint (service-to-service, called by AI-service)
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Receive hybrid reasoning result from AI-service via HTTP callback.
+	 * <p>
+	 * This endpoint is called by the AI-service after it completes
+	 * CLIP + Gemini analysis on proof images. The path uses {@code /internal/}
+	 * prefix to indicate it is not user-facing.
+	 */
+	@PostMapping("/internal/hybrid-callback")
+	public ResponseEntity<ApiResponse<Void>> handleHybridReasoningCallback(
+		@Valid @RequestBody HybridReasoningCallbackRequest request
+	) {
+		log.info("Received hybrid reasoning callback for proofId: {}, trustScore: {}, isValid: {}",
+			request.proofId(), request.trustScore(), request.isValid());
+		
+		try {
+			proofService.updateProofFromHybridResult(request);
+			return ResponseEntity.ok(new ApiResponse<>(1000, "Hybrid reasoning result processed", null));
+		} catch (Exception e) {
+			log.error("Failed to process hybrid reasoning callback for proofId: {}", request.proofId(), e);
+			return ResponseEntity.internalServerError()
+				.body(new ApiResponse<>(5000, "Failed to process callback: " + e.getMessage(), null));
+		}
 	}
 }

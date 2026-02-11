@@ -1,9 +1,22 @@
+"""
+OCR Service — PaddleOCR-based ID card text extraction.
+
+Extracts structured identity information (name, DOB, ID number, etc.)
+from Vietnamese CCCD / CMND images using PaddleOCR with regex-based
+post-processing.
+
+Architecture notes:
+    - PaddleOCR runs locally; no external API dependency.
+    - Uses httpx for async image downloads (non-blocking).
+    - Falls back to mock data ONLY in mock_mode (PaddleOCR init failure).
+"""
+
 import logging
 import re
 import io
 from typing import Dict, List
 
-import requests
+import httpx
 from PIL import Image
 import numpy as np
 from paddleocr import PaddleOCR  # type: ignore
@@ -13,14 +26,20 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# HTTP client settings for image download
+# ---------------------------------------------------------------------------
+_HTTP_TIMEOUT = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=5.0)
+
 
 class OCRService:
     """
-    OCR Service sử dụng PaddleOCR để trích xuất thông tin từ CCCD/CMND Việt Nam.
+    OCR Service using PaddleOCR for Vietnamese ID card data extraction.
 
-    - Đọc được mặt trước / mặt sau
-    - Không phụ thuộc Gemini / API bên ngoài
-    - Fallback mock khi lỗi
+    Capabilities:
+        - Reads front and back of CCCD/CMND
+        - No Gemini / external API dependency
+        - Fallback mock when PaddleOCR init fails
     """
 
     MOCK_NAMES = [
@@ -37,34 +56,59 @@ class OCRService:
         "789 Tran Hung Dao Street, District 5, Ho Chi Minh City",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.mock_mode = False
 
         try:
-            # Dùng model general của PaddleOCR, đủ cho demo CCCD
-            # lang="en" vẫn đọc tốt chữ Latin + số; nếu bạn đã build model vi thì đổi lang="vi"
-            self.ocr = PaddleOCR(use_angle_cls=True, lang="en")  # or "vi" nếu có.[web:86]
+            # PaddleOCR general model — lang="en" reads Latin + digits well.
+            # Switch to lang="vi" if a Vietnamese-specific model is available.
+            self.ocr = PaddleOCR(use_angle_cls=True, lang="en")
             logger.info("OCR Service initialized with PaddleOCR")
         except Exception as e:
-            logger.error(f"Failed to initialize PaddleOCR: {e}")
+            logger.error("Failed to initialize PaddleOCR: %s", e)
             logger.warning("Falling back to mock mode")
             self.mock_mode = True
 
+    # ------------------------------------------------------------------
+    # Image download (async, non-blocking)
+    # ------------------------------------------------------------------
+
     async def download_image(self, url: str) -> bytes:
-        """Download image from URL (giữ y như cũ)."""
+        """
+        Download image from URL using async httpx.
+
+        Args:
+            url: Fully-qualified image URL.
+
+        Returns:
+            Raw image bytes.
+
+        Raises:
+            httpx.HTTPStatusError: On non-2xx response.
+            httpx.TimeoutException: On timeout.
+        """
         try:
-            logger.info(f"Downloading image from: {url}")
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
+            logger.info("Downloading image from: %s", url)
+            async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+                response = await client.get(url)
+                response.raise_for_status()
             return response.content
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "HTTP %s error downloading image from %s: %s",
+                e.response.status_code, url, e,
+            )
+            raise
         except Exception as e:
-            logger.error(f"Failed to download image from {url}: {e}")
+            logger.error("Failed to download image from %s: %s", url, e)
             raise
 
-    # ---------- CORE OCR + PARSE ----------
+    # ------------------------------------------------------------------
+    # Core OCR + Parse
+    # ------------------------------------------------------------------
 
     def _run_paddle_ocr(self, image_bytes: bytes) -> List[str]:
-        """Chạy PaddleOCR và trả về list dòng text."""
+        """Run PaddleOCR and return a list of detected text lines."""
         try:
             image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
             img_np = np.array(image)
@@ -74,21 +118,23 @@ class OCRService:
                 for line in result[0]:
                     text = line[1][0]
                     texts.append(text)
-            logger.info(f"OCR raw lines: {texts}")
+            logger.info("OCR raw lines: %s", texts)
             return texts
         except Exception as e:
-            logger.error(f"Error running PaddleOCR: {e}", exc_info=True)
+            logger.error("Error running PaddleOCR: %s", e, exc_info=True)
             return []
 
     def _parse_id_card_texts(self, texts: List[str]) -> Dict:
         """
-        Parse các dòng text OCR được thành dict thông tin CCCD/CMND.
-        Dùng regex + heuristic, không hoàn hảo nhưng đủ cho demo.
+        Parse OCR text lines into structured ID card fields.
+
+        Uses regex + heuristic matching — sufficient for CCCD/CMND demo,
+        but not production-grade for all edge cases.
         """
         full_text = "\n".join(texts)
         upper_lines = [t.strip() for t in texts if t.strip().isupper()]
 
-        # fullName: lấy dòng UPPER dài nhất, loại mấy từ "CAN CUOC CONG DAN"
+        # fullName: longest UPPER line, excluding header text
         name = ""
         for line in upper_lines:
             if ("CAN CUOC" in line) or ("CONG DAN" in line):
@@ -97,7 +143,7 @@ class OCRService:
                 name = line
                 break
 
-        # idNumber: ưu tiên 12 số (CCCD), fallback 9 số (CMND)
+        # idNumber: prefer 12-digit (CCCD), fallback 9-digit (CMND)
         id12 = re.search(r"\b\d{12}\b", full_text)
         id9 = re.search(r"\b\d{9}\b", full_text)
         id_number = id12.group(0) if id12 else (id9.group(0) if id9 else "")
@@ -109,13 +155,13 @@ class OCRService:
         else:
             id_type = ""
 
-        # dob (Ngày sinh DD/MM/YYYY hoặc DD-MM-YYYY)
+        # dob (DD/MM/YYYY or DD-MM-YYYY)
         dob_match = re.search(
             r"(\d{2}[/-]\d{2}[/-]\d{4})", full_text, flags=re.IGNORECASE
         )
         dob = dob_match.group(1).replace("-", "/") if dob_match else ""
 
-        # issueDate & expiryDate (dùng từ khóa)
+        # issueDate & expiryDate (keyword-based)
         issue_match = re.search(
             r"(NGAY CAP|Ngày cấp|Issue Date)[:\s]*([0-9]{2}[/-][0-9]{2}[/-][0-9]{4})",
             full_text,
@@ -134,26 +180,25 @@ class OCRService:
             expiry_match.group(2).replace("-", "/") if expiry_match else ""
         )
 
-        # address & placeOfOrigin: rất phụ thuộc layout CCCD; đây là heuristic đơn giản
+        # address & placeOfOrigin
         address = ""
         place_of_origin = ""
 
-        # Tìm dòng chứa từ khóa
         for line in texts:
-            l = line.upper()
-            if ("THUONG TRU" in l) or ("THƯỜNG TRÚ" in l) or ("NOI CU TRU" in l):
+            upper = line.upper()
+            if ("THUONG TRU" in upper) or ("THƯỜNG TRÚ" in upper) or ("NOI CU TRU" in upper):
                 address = line
-            if ("QUE QUAN" in l) or ("QUÊ QUÁN" in l) or ("NGUYEN QUAN" in l):
+            if ("QUE QUAN" in upper) or ("QUÊ QUÁN" in upper) or ("NGUYEN QUAN" in upper):
                 place_of_origin = line
 
-        # Giới tính
+        # Gender
         gender = ""
         if re.search(r"\bNAM\b", full_text, flags=re.IGNORECASE):
             gender = "Nam"
         elif re.search(r"\bNU\b|\bNỮ\b", full_text, flags=re.IGNORECASE):
             gender = "Nữ"
 
-        # Quốc tịch
+        # Nationality
         nationality = ""
         if "VIET NAM" in full_text.upper() or "VIỆT NAM" in full_text.upper():
             nationality = "Việt Nam"
@@ -171,10 +216,11 @@ class OCRService:
             "expiryDate": expiry_date,
         }
 
-        logger.info(f"Parsed ID card fields: {parsed}")
+        logger.info("Parsed ID card fields: %s", parsed)
         return parsed
 
     def _mock_extract(self) -> Dict:
+        """Generate mock KYC data for development/testing."""
         import random
 
         return {
@@ -191,6 +237,7 @@ class OCRService:
         }
 
     def _merge_front_back_data(self, front_data: Dict, back_data: Dict) -> Dict:
+        """Merge OCR results from front and back images, preferring non-empty values."""
         merged = {
             "fullName": front_data.get("fullName", "") or back_data.get("fullName", ""),
             "dob": front_data.get("dob", "") or back_data.get("dob", ""),
@@ -210,11 +257,26 @@ class OCRService:
         }
         return merged
 
-    # ---------- PUBLIC API ----------
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     async def process_id_card(
         self, front_image_url: str, back_image_url: str
     ) -> ExtractedKycData:
+        """
+        Extract identity data from front and back ID card images.
+
+        Args:
+            front_image_url: URL of the front-side image.
+            back_image_url: URL of the back-side image.
+
+        Returns:
+            ExtractedKycData with parsed fields.
+
+        Raises:
+            RuntimeError: If OCR cannot extract required fields (fullName, idNumber).
+        """
         try:
             logger.info("Processing ID card images (PaddleOCR)")
 
@@ -238,19 +300,30 @@ class OCRService:
             merged_data = self._merge_front_back_data(front_data, back_data)
 
             if not merged_data.get("fullName") or not merged_data.get("idNumber"):
-                logger.warning("Could not extract required fields, falling back to mock")
-                return ExtractedKycData(**self._mock_extract())
+                logger.error(
+                    "OCR failed to extract required fields — fullName: '%s', idNumber: '%s'",
+                    merged_data.get("fullName", ""),
+                    merged_data.get("idNumber", ""),
+                )
+                raise RuntimeError(
+                    "OCR không thể trích xuất trường bắt buộc (Họ tên / Số CCCD). "
+                    "Vui lòng chụp ảnh rõ hơn và thử lại."
+                )
 
             logger.info(
-                f"Successfully extracted KYC data (PaddleOCR): "
-                f"{merged_data['fullName']}, ID: {merged_data['idNumber']}"
+                "Successfully extracted KYC data (PaddleOCR): %s, ID: %s",
+                merged_data["fullName"], merged_data["idNumber"],
             )
             return ExtractedKycData(**merged_data)
 
+        except RuntimeError:
+            # Re-raise RuntimeError (our own validation error) as-is.
+            raise
         except Exception as e:
-            logger.error(f"Failed to process ID card: {e}", exc_info=True)
-            logger.info("Falling back to mock data due to error")
-            return ExtractedKycData(**self._mock_extract())
+            logger.error("Failed to process ID card: %s", e, exc_info=True)
+            raise RuntimeError(
+                f"Lỗi xử lý OCR ảnh CCCD: {str(e)}"
+            ) from e
 
 
 ocr_service = OCRService()

@@ -424,13 +424,24 @@ class HybridReasoningService:
         except Exception as e:
             logger.error(f"Hybrid reasoning failed for proof {request.proof_id}: {e}", exc_info=True)
             
-            # Return error response
-            return HybridReasoningResponse(
+            # Build error response and notify Core-service via callback
+            error_response = HybridReasoningResponse(
                 proof_id=request.proof_id,
                 trust_score=0,
                 is_valid=False,
                 analysis_summary=f"Lỗi xử lý: {str(e)}"
             )
+            
+            # Best-effort callback so Core-service can mark proof as REJECTED
+            # instead of leaving it stuck in PROCESSING state forever.
+            try:
+                await self._send_callback(error_response)
+            except Exception as cb_err:
+                logger.error(
+                    f"Failed to send error callback for proof {request.proof_id}: {cb_err}"
+                )
+            
+            return error_response
 
 
 # Singleton instance

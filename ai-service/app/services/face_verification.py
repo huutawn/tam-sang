@@ -1,7 +1,9 @@
 import logging
 import os
+import asyncio
 import tempfile
 from typing import Dict
+from functools import partial
 from deepface import DeepFace
 import io
 from PIL import Image
@@ -13,7 +15,9 @@ class FaceVerificationService:
     """
     Service để verify khuôn mặt giữa ảnh selfie và ảnh KYC (CMND/CCCD)
     
-    Sử dụng DeepFace library với model VGG-Face
+    Sử dụng DeepFace library với model VGG-Face.
+    DeepFace.verify() is CPU-bound (neural network inference), so it is
+    offloaded to a thread pool executor to avoid blocking the asyncio loop.
     """
     
     def __init__(self):
@@ -25,23 +29,14 @@ class FaceVerificationService:
         """
         Save image bytes to temporary file
         (DeepFace yêu cầu file paths, không nhận bytes)
-        
-        Args:
-            image_bytes: Binary data của ảnh
-            prefix: Prefix cho temp file name
-            
-        Returns:
-            Path to temporary file
         """
         try:
-            # Create temp file
             temp_file = tempfile.NamedTemporaryFile(
                 delete=False, 
                 suffix=".jpg",
                 prefix=f"{prefix}_"
             )
             
-            # Save image
             image = Image.open(io.BytesIO(image_bytes))
             image.save(temp_file.name, format="JPEG")
             temp_file.close()
@@ -54,12 +49,7 @@ class FaceVerificationService:
             raise
     
     def _cleanup_temp_files(self, *file_paths):
-        """
-        Delete temporary files
-        
-        Args:
-            *file_paths: Variable number of file paths to delete
-        """
+        """Delete temporary files"""
         for file_path in file_paths:
             try:
                 if file_path and os.path.exists(file_path):
@@ -67,6 +57,21 @@ class FaceVerificationService:
                     logger.debug(f"Cleaned up temp file: {file_path}")
             except Exception as e:
                 logger.warning(f"Failed to cleanup temp file {file_path}: {e}")
+    
+    def _run_deepface_verify(self, selfie_path: str, kyc_path: str) -> dict:
+        """
+        Run DeepFace.verify synchronously (called from executor).
+        
+        This method is CPU-bound and should NOT be called directly
+        from async code; use verify_face() instead.
+        """
+        return DeepFace.verify(
+            img1_path=selfie_path,
+            img2_path=kyc_path,
+            model_name="VGG-Face",
+            detector_backend="opencv",
+            enforce_detection=True
+        )
     
     async def verify_face(
         self, 
@@ -76,17 +81,12 @@ class FaceVerificationService:
         """
         So sánh khuôn mặt giữa ảnh selfie và ảnh KYC
         
-        Args:
-            selfie_bytes: Binary data của ảnh selfie
-            kyc_image_bytes: Binary data của ảnh CMND/CCCD
-            
+        DeepFace.verify is offloaded to a thread pool executor since it
+        performs CPU-intensive neural network inference that would otherwise
+        block the asyncio event loop for several seconds.
+        
         Returns:
-            Dict với keys:
-            - verified: bool - Khuôn mặt có khớp không
-            - distance: float - Khoảng cách giữa 2 khuôn mặt
-            - threshold: float - Ngưỡng để xác định khớp
-            - score: int - Điểm 0-100
-            - details: str - Chi tiết
+            Dict với keys: verified, distance, threshold, score, details
         """
         selfie_path = None
         kyc_path = None
@@ -98,15 +98,11 @@ class FaceVerificationService:
             selfie_path = self._save_temp_image(selfie_bytes, "selfie")
             kyc_path = self._save_temp_image(kyc_image_bytes, "kyc")
             
-            # Verify với DeepFace
-            # model_name: VGG-Face, Facenet, OpenFace, DeepFace, DeepID, ArcFace, Dlib
-            # detector_backend: opencv, ssd, dlib, mtcnn, retinaface
-            result = DeepFace.verify(
-                img1_path=selfie_path,
-                img2_path=kyc_path,
-                model_name="VGG-Face",
-                detector_backend="opencv",
-                enforce_detection=True  # Require face detection
+            # Offload CPU-bound DeepFace inference to thread pool
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None,  # Use default ThreadPoolExecutor
+                partial(self._run_deepface_verify, selfie_path, kyc_path)
             )
             
             verified = result["verified"]
@@ -115,10 +111,8 @@ class FaceVerificationService:
             
             # Calculate score (0-100)
             if verified:
-                # Càng gần 0 càng giống -> score cao
                 score = min(100, int((1 - distance / threshold) * 100))
             else:
-                # Nếu không verify, score thấp
                 score = max(0, int((1 - distance / threshold) * 100))
             
             logger.info(f"Face verification complete - Verified: {verified}, Distance: {distance:.4f}, Score: {score}")
@@ -132,7 +126,6 @@ class FaceVerificationService:
             }
             
         except ValueError as e:
-            # Face not detected
             error_msg = str(e)
             logger.warning(f"Face verification failed: {error_msg}")
             
@@ -164,9 +157,9 @@ class FaceVerificationService:
             }
             
         finally:
-            # Cleanup temp files
             self._cleanup_temp_files(selfie_path, kyc_path)
 
 
 # Singleton instance
 face_verification_service = FaceVerificationService()
+

@@ -54,7 +54,7 @@ class ImageForensicsService:
                 logger.warning("No EXIF data found in image")
                 return {
                     "has_warning": True,
-                    "software": "",
+                    "software_detected": "",
                     "details": "Missing EXIF data - possible screenshot or edited image"
                 }
             
@@ -73,7 +73,7 @@ class ImageForensicsService:
                     logger.warning(f"Detected editing software: {editing_app}")
                     return {
                         "has_warning": True,
-                        "software": editing_app,
+                        "software_detected": editing_app,
                         "details": f"Image edited with {editing_app}"
                     }
             
@@ -86,7 +86,7 @@ class ImageForensicsService:
             
             return {
                 "has_warning": False,
-                "software": software,
+                "software_detected": software,
                 "details": f"Original photo from {make} {model} at {datetime_original}"
             }
             
@@ -94,7 +94,7 @@ class ImageForensicsService:
             logger.error(f"Error checking metadata: {e}")
             return {
                 "has_warning": True,
-                "software": "",
+                "software_detected": "",
                 "details": f"Error reading EXIF: {str(e)}"
             }
     

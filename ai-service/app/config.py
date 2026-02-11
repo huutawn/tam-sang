@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     
     # Core Service Callback Configuration
     core_service_url: str = "http://localhost:8081"
-    callback_endpoint: str = "/api/v1/proof/reasoning"
+    callback_endpoint: str = "/proofs/internal/hybrid-callback"
     callback_timeout: int = 30  # seconds
     callback_retry_count: int = 3
     

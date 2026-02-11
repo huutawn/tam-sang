@@ -1,0 +1,2 @@
+@echo off
+wt -w 0 nt --title "server" -d "D:\tamsang\discovery-server" ; split-pane -d "D:\tamsang\config-server" -V ; split-pane -d "D:\tamsang\api-gateway" -V ; new-tab -p "Windows PowerShell" --title "java" -d "D:\tamsang\identity-service" ; split-pane -d "D:\tamsang\core-service" -V ; new-tab -p "Windows PowerShell" --title "go" -d "D:\tamsang\file-service" ; split-pane -d "D:\tamsang\blockchain-service" -V

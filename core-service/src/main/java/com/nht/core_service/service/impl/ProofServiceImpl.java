@@ -9,14 +9,17 @@ import org.springframework.stereotype.Service;
 import com.nht.core_service.document.Campaign;
 import com.nht.core_service.document.Proof;
 import com.nht.core_service.document.WithdrawalRequest;
+import com.nht.core_service.dto.request.HybridReasoningCallbackRequest;
 import com.nht.core_service.dto.response.ProofResponse;
 import com.nht.core_service.enums.AiStatus;
 import com.nht.core_service.enums.WithdrawalStatus;
 import com.nht.core_service.enums.WithdrawalType;
 import com.nht.core_service.exception.AppException;
 import com.nht.core_service.exception.ErrorCode;
+import com.nht.core_service.kafka.event.HybridReasoningRequestEvent;
 import com.nht.core_service.kafka.event.ProofVerificationRequestEvent;
 import com.nht.core_service.kafka.event.ProofVerificationResultEvent;
+import com.nht.core_service.kafka.producer.HybridReasoningProducer;
 import com.nht.core_service.kafka.producer.ProofKafkaProducer;
 import com.nht.core_service.repository.mongodb.CampaignRepository;
 import com.nht.core_service.repository.mongodb.ProofRepository;
@@ -36,6 +39,7 @@ public class ProofServiceImpl implements ProofService {
 	private final WithdrawalRequestRepository withdrawalRequestRepository;
 	private final CampaignRepository campaignRepository;
 	private final ProofKafkaProducer proofKafkaProducer;
+	private final HybridReasoningProducer hybridReasoningProducer;
 	private final WebSocketService webSocketService;
 	
 	@Override
@@ -114,14 +118,31 @@ public class ProofServiceImpl implements ProofService {
 	public void updateProofFromAiResult(ProofVerificationResultEvent event) {
 		log.info("Updating proof from AI result: {}", event.proofId());
 		
-		// Find proof
 		Proof proof = proofRepository.findById(event.proofId())
 			.orElseThrow(() -> new AppException(ErrorCode.PROOF_NOT_FOUND));
 		
 		// Update AI analysis fields
 		proof.setAiStatus(event.isValid() ? AiStatus.VERIFIED : AiStatus.REJECTED);
 		proof.setAiScore(event.score());
-		proof.setAiAnalysis(event.analysisDetails());
+		
+		// Build analysis string including forensics metadata (BUG-04 fix)
+		StringBuilder analysis = new StringBuilder();
+		analysis.append(event.analysisDetails() != null ? event.analysisDetails() : "");
+		
+		if (event.metadata() != null && !event.metadata().isEmpty()) {
+			var meta = event.metadata();
+			if (Boolean.TRUE.equals(meta.get("has_exif_warning"))) {
+				analysis.append("\n⚠️ EXIF warning: ").append(meta.getOrDefault("details", "N/A"));
+			}
+			Object software = meta.get("software_detected");
+			if (software != null && !software.toString().isEmpty()) {
+				analysis.append("\n🔍 Software: ").append(software);
+			}
+			if (Boolean.TRUE.equals(meta.get("is_duplicate"))) {
+				analysis.append("\n🚫 Ảnh trùng lặp!");
+			}
+		}
+		proof.setAiAnalysis(analysis.toString());
 		
 		Proof updatedProof = proofRepository.save(proof);
 		log.info("Proof updated - ID: {}, Status: {}, Score: {}", 
@@ -142,6 +163,57 @@ public class ProofServiceImpl implements ProofService {
 		if (event.isValid() && event.score() >= 80) {
 			log.info("Proof verified with high score, consider auto-processing withdrawal");
 			// TODO: Implement auto-processing logic
+		}
+	}
+	
+	@Override
+	public void updateProofFromHybridResult(HybridReasoningCallbackRequest request) {
+		log.info("Updating proof from hybrid reasoning result: {}", request.proofId());
+		
+		Proof proof = proofRepository.findById(request.proofId())
+			.orElseThrow(() -> new AppException(ErrorCode.PROOF_NOT_FOUND));
+		
+		// Map trust score and validity
+		proof.setAiStatus(request.isValid() ? AiStatus.VERIFIED : AiStatus.REJECTED);
+		proof.setAiScore(request.trustScore());
+		
+		// Build comprehensive analysis from hybrid reasoning details
+		StringBuilder analysis = new StringBuilder();
+		analysis.append(request.analysisSummary() != null ? request.analysisSummary() : "");
+		
+		if (request.geminiTotalAmount() != null && request.geminiTotalAmount() > 0) {
+			analysis.append(String.format("\n[Gemini] Tổng tiền: %.0f VND, Số mặt hàng: %d",
+				request.geminiTotalAmount(),
+				request.geminiItemsCount() != null ? request.geminiItemsCount() : 0));
+		}
+		
+		if (request.clipSceneScore() != null) {
+			analysis.append(String.format("\n[CLIP] Scene relevance: %.2f", request.clipSceneScore()));
+		}
+		
+		if (Boolean.TRUE.equals(request.duplicateDetected())) {
+			analysis.append("\n⚠️ Phát hiện ảnh trùng lặp!");
+		}
+		
+		if (request.trustHash() != null) {
+			analysis.append("\n[Hash] ").append(request.trustHash());
+		}
+		
+		proof.setAiAnalysis(analysis.toString());
+		
+		Proof updatedProof = proofRepository.save(proof);
+		log.info("Proof updated from hybrid reasoning - ID: {}, Status: {}, Score: {}",
+			updatedProof.getId(), updatedProof.getAiStatus(), updatedProof.getAiScore());
+		
+		// Push WebSocket notification
+		try {
+			webSocketService.sendProofVerificationUpdate(
+				updatedProof.getWithdrawalRequestId(),
+				toProofResponse(updatedProof)
+			);
+			log.info("WebSocket notification sent for hybrid proof: {}", updatedProof.getId());
+		} catch (Exception e) {
+			log.error("Failed to send WebSocket notification for proof: {}", updatedProof.getId(), e);
 		}
 	}
 	
