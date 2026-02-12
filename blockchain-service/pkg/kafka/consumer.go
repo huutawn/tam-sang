@@ -114,29 +114,36 @@ func (c *Consumer) processMessage(ctx context.Context, msg kafka.Message) {
 		Payload   json.RawMessage `json:"payload"`
 	}
 
-	if err := json.Unmarshal(msg.Value, &envelope); err != nil {
-		// If parsing fails, try to use key as event type
-		envelope.EventType = key
-		envelope.Payload = msg.Value
+	eventType := ""
+	payload := msg.Value
+
+	if err := json.Unmarshal(msg.Value, &envelope); err == nil && envelope.EventType != "" {
+		// Successfully parsed envelope format
+		eventType = envelope.EventType
+		payload = envelope.Payload
+	} else {
+		// No envelope — likely a Spring Kafka producer sending raw DTO
+		// Use key as event type hint, raw value as payload
+		eventType = key
 	}
 
 	// Find handler for event type
-	handler, ok := c.handlers[envelope.EventType]
+	handler, ok := c.handlers[eventType]
 	if !ok {
 		// Try default handler
 		handler, ok = c.handlers["*"]
 		if !ok {
 			logger.Warn("No handler for event type",
-				zap.String("event_type", envelope.EventType),
+				zap.String("event_type", eventType),
 			)
 			return
 		}
 	}
 
 	// Execute handler
-	if err := handler(ctx, envelope.EventType, envelope.Payload); err != nil {
+	if err := handler(ctx, eventType, payload); err != nil {
 		logger.Error("Failed to handle Kafka message",
-			zap.String("event_type", envelope.EventType),
+			zap.String("event_type", eventType),
 			zap.Error(err),
 		)
 	}

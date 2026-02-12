@@ -67,4 +67,35 @@ public class GatewayConfig {
                 .filter(stripPrefix(2))  // Strip both /api and /file
                 .build();
     }
+    @Bean
+    public RouterFunction<ServerResponse> blockchainServiceRoute() {
+        return route("blockchain-service")
+                .route(request -> request.path().startsWith("/api/blockchain"),
+                       request -> {
+                           ServiceInstance instance = loadBalancerClient.choose("BLOCKCHAIN-SERVICE");
+                           if (instance == null) {
+                               return ServerResponse.notFound().build();
+                           }
+                           String uri = instance.getUri().toString();
+                           return HandlerFunctions.http(uri).handle(request);
+                       })
+                .filter(stripPrefix(2))
+                .build();
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> aiServiceRoute() {
+        return route("ai-service")
+                .route(request -> request.path().startsWith("/api/ai"),
+                       request -> {
+                           ServiceInstance instance = loadBalancerClient.choose("AI-SERVICE");
+                           if (instance == null) {
+                               return ServerResponse.notFound().build();
+                           }
+                           String uri = instance.getUri().toString();
+                           return HandlerFunctions.http(uri).handle(request);
+                       })
+                .filter(stripPrefix(2))
+                .build();
+    }
 }

@@ -14,6 +14,7 @@ public enum ErrorCode {
 	CAMPAIGN_NOT_FOUND(2001, "Campaign not found", HttpStatus.NOT_FOUND),
 	CAMPAIGN_CREATION_FAILED(2002, "Failed to create campaign", HttpStatus.INTERNAL_SERVER_ERROR),
 	CAMPAIGN_ALREADY_CLOSED(2003, "Campaign is already closed", HttpStatus.BAD_REQUEST),
+	CAMPAIGN_CLOSE_FAILED(2005, "Failed to close campaign: wallet freeze failed", HttpStatus.INTERNAL_SERVER_ERROR),
 	CAMPAIGN_WAITING_FOR_PROOF(2004, "Campaign is waiting for proof submission", HttpStatus.BAD_REQUEST),
 
 	// Wallet errors (2100-2199)

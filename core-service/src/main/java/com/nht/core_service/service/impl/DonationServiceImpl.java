@@ -128,11 +128,11 @@ public class DonationServiceImpl implements DonationService {
 		}
 
 
-		// Publish event to Kafka
+		// Publish event to Kafka (with donationId as key for tracing)
 		DonationEvent event = new DonationEvent(donation.getId(),
 				donation.getCampaignId(), donation.getAmount(), donation.getDonorFullName(), donation.getContent());
 
-		kafkaTemplate.send(KafkaTopicConfig.DONATION_EVENTS_TOPIC, event);
+		kafkaTemplate.send(KafkaTopicConfig.DONATION_EVENTS_TOPIC, donation.getId().toString(), event);
 		log.info("Published donation event to Kafka: campaignId={}", donation.getCampaignId());
 	}
 
@@ -148,7 +148,7 @@ public class DonationServiceImpl implements DonationService {
 			return;
 		}
 
-		// Update donation status to COMPLETED
+		// === JPA Transaction: Update donation status ===
 		UUID donationId = UUID.fromString(request.donationId());
 		Donation donation = donationRepository.findById(donationId)
 				.orElseThrow(() -> new AppException(ErrorCode.DONATION_NOT_FOUND));
@@ -157,41 +157,65 @@ public class DonationServiceImpl implements DonationService {
 		donation.setBlockchainTxHash(request.transactionHash());
 		donationRepository.save(donation);
 
-		// Update MongoDB Campaign.currentAmount atomically
-		Query query = new Query(Criteria.where("id").is(request.campaignId()));
-		Update update = new Update().inc("currentAmount", request.amount().doubleValue());
-		mongoTemplate.updateFirst(query, update, Campaign.class);
-		log.info("Updated MongoDB campaign currentAmount: campaignId={}", request.campaignId());
-
-		// Update Redis cache if exists
-		String cacheKey = "campaign:" + request.campaignId() + ":amount";
-		if (Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey))) {
-			redisTemplate.opsForValue().increment(cacheKey, request.amount().longValue());
-			log.info("Updated Redis cache: key={}", cacheKey);
-		}
-
-		// Send WebSocket notifications
-		Campaign campaign = campaignRepository.findById(request.campaignId()).orElse(null);
-		if (campaign != null) {
-			Long donationCount = donationRepository.countByCampaignId(request.campaignId());
-
-			// Send campaign stats update
-			CampaignStatsMessage statsMessage = new CampaignStatsMessage(
-					request.campaignId(), campaign.getCurrentAmount(), donationCount, request.donorName());
-			webSocketService.sendCampaignStats(statsMessage);
-
-			// Send activity notification
-			String description = String.format(
-					"%s đã ủng hộ %s VND", request.donorName(), request.amount().longValue());
-			CampaignActivityMessage activityMessage = new CampaignActivityMessage(
-					request.campaignId(), "DONATION", description, Instant.now().toString());
-			webSocketService.sendCampaignActivity(activityMessage);
-
-			log.info("Sent WebSocket notifications for campaign: {}", request.campaignId());
-		}
-
-		// Mark event as processed
+		// Mark event as processed (within same JPA transaction)
 		processEventRepository.save(new ProcessEvent(request.donationId(), LocalDateTime.now()));
+		log.info("JPA transaction committed: donationId={}", request.donationId());
+
+		// === Non-transactional side effects (best-effort) ===
+		// Read campaign BEFORE the atomic update to get current state
+		Campaign campaign = campaignRepository.findById(request.campaignId()).orElse(null);
+
+		// MongoDB: Update currentAmount atomically
+		try {
+			Query query = new Query(Criteria.where("id").is(request.campaignId()));
+			Update update = new Update().inc("currentAmount", request.amount().doubleValue());
+			mongoTemplate.updateFirst(query, update, Campaign.class);
+			log.info("Updated MongoDB campaign currentAmount: campaignId={}", request.campaignId());
+		} catch (Exception e) {
+			log.error("Failed to update MongoDB currentAmount for campaign={}, manual reconciliation needed",
+					request.campaignId(), e);
+		}
+
+		// Redis: Update cache atomically (avoid hasKey+increment race condition)
+		try {
+			String cacheKey = "campaign:" + request.campaignId() + ":amount";
+			// Use increment directly — atomic, and avoids TOCTOU race with hasKey()
+			// If key doesn't exist, Redis creates it with value 0, then increments
+			Long result = redisTemplate.opsForValue().increment(cacheKey, request.amount().longValue());
+			if (result != null && result == request.amount().longValue()) {
+				// Key was just created by this increment (didn't exist before), remove it
+				// to keep cache consistent — we only want to update existing cache entries
+				redisTemplate.delete(cacheKey);
+				log.debug("Redis key didn't exist, deleted auto-created key: {}", cacheKey);
+			} else {
+				log.info("Updated Redis cache atomically: key={}", cacheKey);
+			}
+		} catch (Exception e) {
+			log.error("Failed to update Redis cache for campaign={}", request.campaignId(), e);
+		}
+
+		// WebSocket: Send real-time notifications
+		try {
+			if (campaign != null) {
+				BigDecimal newCurrentAmount = campaign.getCurrentAmount().add(request.amount());
+				Long donationCount = donationRepository.countByCampaignId(request.campaignId());
+
+				CampaignStatsMessage statsMessage = new CampaignStatsMessage(
+						request.campaignId(), newCurrentAmount, donationCount, request.donorName());
+				webSocketService.sendCampaignStats(statsMessage);
+
+				String description = String.format(
+						"%s đã ủng hộ %s VND", request.donorName(), request.amount().longValue());
+				CampaignActivityMessage activityMessage = new CampaignActivityMessage(
+						request.campaignId(), "DONATION", description, Instant.now().toString());
+				webSocketService.sendCampaignActivity(activityMessage);
+
+				log.info("Sent WebSocket notifications for campaign: {}", request.campaignId());
+			}
+		} catch (Exception e) {
+			log.error("Failed to send WebSocket notifications for campaign={}", request.campaignId(), e);
+		}
+
 		log.info("Donation completed successfully: donationId={}, txHash={}", 
 				request.donationId(), request.transactionHash());
 	}

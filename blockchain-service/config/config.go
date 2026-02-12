@@ -70,6 +70,7 @@ type SecurityConfig struct {
 	CORSAllowedOrigins []string
 	RateLimitRequests  int
 	RateLimitDuration  int
+	InternalAPIKey     string // Shared key for inter-service authentication
 }
 
 // LoggingConfig holds logging configuration
@@ -135,6 +136,7 @@ func Load() (*Config, error) {
 			CORSAllowedOrigins: parseStringSlice(viper.GetString("CORS_ALLOWED_ORIGINS")),
 			RateLimitRequests:  viper.GetInt("RATE_LIMIT_REQUESTS"),
 			RateLimitDuration:  viper.GetInt("RATE_LIMIT_DURATION"),
+			InternalAPIKey:     viper.GetString("INTERNAL_API_KEY"),
 		},
 		Logging: LoggingConfig{
 			Level:  viper.GetString("LOG_LEVEL"),

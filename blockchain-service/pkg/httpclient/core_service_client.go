@@ -70,7 +70,43 @@ func (c *CoreServiceClient) getServiceURL() (string, error) {
 }
 
 // CompleteDonation calls core-service to complete donation processing
+// Includes retry with exponential backoff for resilience
 func (c *CoreServiceClient) CompleteDonation(ctx context.Context, req *DonationCompleteRequest) error {
+	const maxRetries = 3
+
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(1<<uint(attempt-1)) * time.Second // 1s, 2s, 4s
+			logger.Info("Retrying CompleteDonation",
+				zap.String("donation_id", req.DonationID),
+				zap.Int("attempt", attempt+1),
+				zap.Duration("backoff", backoff),
+			)
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context cancelled during retry: %w", ctx.Err())
+			case <-time.After(backoff):
+			}
+		}
+
+		lastErr = c.doCompleteDonation(ctx, req)
+		if lastErr == nil {
+			return nil
+		}
+
+		logger.Warn("CompleteDonation attempt failed",
+			zap.String("donation_id", req.DonationID),
+			zap.Int("attempt", attempt+1),
+			zap.Error(lastErr),
+		)
+	}
+
+	return fmt.Errorf("all %d attempts failed for donation %s: %w", maxRetries, req.DonationID, lastErr)
+}
+
+// doCompleteDonation performs a single attempt to call core-service
+func (c *CoreServiceClient) doCompleteDonation(ctx context.Context, req *DonationCompleteRequest) error {
 	baseURL, err := c.getServiceURL()
 	if err != nil {
 		return fmt.Errorf("failed to discover core-service: %w", err)
@@ -112,7 +148,8 @@ func (c *CoreServiceClient) CompleteDonation(ctx context.Context, req *DonationC
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	if apiResp.Code != 0 {
+	// core-service ApiResponse converts code 0 → 1000, accept both
+	if apiResp.Code != 0 && apiResp.Code != 1000 {
 		return fmt.Errorf("core-service returned error: code=%d, message=%s", apiResp.Code, apiResp.Message)
 	}
 

@@ -17,11 +17,16 @@ import (
 
 // DonationEvent represents the donation event from core-service
 type DonationEvent struct {
-	DonationID string  `json:"donationId"`
-	CampaignID string  `json:"campaignId"`
-	Amount     float64 `json:"amount"`
-	DonorName  string  `json:"donorName"`
-	Message    string  `json:"message"`
+	DonationID string      `json:"donationId"`
+	CampaignID string      `json:"campaignId"`
+	Amount     json.Number `json:"amount"` // Use json.Number to preserve BigDecimal precision
+	DonorName  string      `json:"donorName"`
+	Message    string      `json:"message"`
+}
+
+// AmountFloat64 converts the Amount to float64 for calculations
+func (e *DonationEvent) AmountFloat64() (float64, error) {
+	return e.Amount.Float64()
 }
 
 // DonationHandler handles donation events from Kafka
@@ -49,10 +54,37 @@ func (h *DonationHandler) HandleDonationEvent(ctx context.Context, eventType str
 		return err
 	}
 
+	// Validate UUID fields from Java (cross-service format check)
+	if _, err := uuid.Parse(event.DonationID); err != nil {
+		logger.Error("Invalid donationId UUID format",
+			zap.String("donation_id", event.DonationID),
+			zap.Error(err),
+		)
+		return fmt.Errorf("invalid donationId UUID: %w", err)
+	}
+	if _, err := uuid.Parse(event.CampaignID); err != nil {
+		logger.Error("Invalid campaignId UUID format",
+			zap.String("campaign_id", event.CampaignID),
+			zap.Error(err),
+		)
+		return fmt.Errorf("invalid campaignId UUID: %w", err)
+	}
+
+	// Convert amount from json.Number to float64 (preserves BigDecimal precision during transport)
+	amountFloat, err := event.AmountFloat64()
+	if err != nil {
+		logger.Error("Invalid amount in donation event",
+			zap.String("donation_id", event.DonationID),
+			zap.String("raw_amount", event.Amount.String()),
+			zap.Error(err),
+		)
+		return fmt.Errorf("invalid amount: %w", err)
+	}
+
 	logger.Info("Processing donation event",
 		zap.String("donation_id", event.DonationID),
 		zap.String("campaign_id", event.CampaignID),
-		zap.Float64("amount", event.Amount),
+		zap.Float64("amount", amountFloat),
 		zap.String("donor_name", event.DonorName),
 	)
 
@@ -68,7 +100,7 @@ func (h *DonationHandler) HandleDonationEvent(ctx context.Context, eventType str
 		TransactionID: transactionID,
 		WalletID:      walletID,
 		Type:          "donation",
-		Amount:        event.Amount,
+		Amount:        amountFloat,
 		Currency:      "VND",
 		Description:   fmt.Sprintf("Donation from %s: %s", event.DonorName, event.Message),
 		Timestamp:     time.Now(),
@@ -101,7 +133,7 @@ func (h *DonationHandler) HandleDonationEvent(ctx context.Context, eventType str
 	completeReq := &httpclient.DonationCompleteRequest{
 		DonationID:      event.DonationID,
 		CampaignID:      event.CampaignID,
-		Amount:          event.Amount,
+		Amount:          amountFloat,
 		DonorName:       event.DonorName,
 		Message:         event.Message,
 		TransactionHash: latestHash,

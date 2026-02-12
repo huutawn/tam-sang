@@ -197,7 +197,7 @@ public class CampaignServiceImpl implements CampaignService {
 		BigDecimal walletBalance = BigDecimal.ZERO;
 		try {
 			ApiResponse<WalletResponse> walletResponse = blockchainServiceClient.getWalletByCampaign(id);
-			if (walletResponse.code() == 0 && walletResponse.result() != null) {
+			if (walletResponse.code() == 1000 && walletResponse.result() != null) {
 				walletBalance = walletResponse.result().balance();
 			}
 		} catch (Exception e) {
@@ -243,6 +243,9 @@ public class CampaignServiceImpl implements CampaignService {
 			throw new AppException(ErrorCode.CAMPAIGN_ALREADY_CLOSED);
 		}
 
+		// Save previous status for rollback
+		CampaignStatus previousStatus = campaign.getStatus();
+
 		// Update campaign status
 		campaign.setStatus(CampaignStatus.CLOSED);
 		campaignRepository.save(campaign);
@@ -250,12 +253,18 @@ public class CampaignServiceImpl implements CampaignService {
 		// Freeze the wallet in blockchain-service
 		try {
 			ApiResponse<WalletResponse> walletResponse = blockchainServiceClient.getWalletByCampaign(id);
-			if (walletResponse.code() == 0 && walletResponse.result() != null) {
+			if (walletResponse.code() == 1000 && walletResponse.result() != null) {
 				blockchainServiceClient.freezeWallet(walletResponse.result().id());
 				log.info("Wallet frozen for campaign: {}", id);
+			} else {
+				log.warn("Could not find wallet for campaign: {}, code={}", id, walletResponse.code());
 			}
 		} catch (Exception e) {
-			log.error("Failed to freeze wallet for campaign: {}", id, e);
+			// Rollback campaign status — wallet is still active, can't leave campaign CLOSED
+			log.error("Failed to freeze wallet for campaign: {}, rolling back status to {}", id, previousStatus, e);
+			campaign.setStatus(previousStatus);
+			campaignRepository.save(campaign);
+			throw new AppException(ErrorCode.CAMPAIGN_CLOSE_FAILED);
 		}
 
 		log.info("Campaign closed: {}", id);

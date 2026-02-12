@@ -74,36 +74,45 @@ func (r *Router) Setup() *gin.Engine {
 	// API v1 routes
 	v1 := engine.Group("/v1")
 	{
+		// Internal auth middleware (only for mutating endpoints)
+		authMiddleware := middleware.InternalAuth(r.config.Security.InternalAPIKey)
+
 		// Contract routes
 		contracts := v1.Group("/contracts")
 		{
-			contracts.POST("/sign", r.contractHandler.SignContract)
+			// Public (read-only)
 			contracts.GET("/:contractId", r.contractHandler.GetContract)
 			contracts.GET("/:contractId/verify", r.contractHandler.VerifyContract)
 			contracts.GET("/:contractId/download", r.contractHandler.DownloadContract)
 			contracts.GET("/campaign/:campaignId", r.contractHandler.GetContractByCampaign)
+
+			// Protected (mutating)
+			contracts.POST("/sign", authMiddleware, r.contractHandler.SignContract)
 		}
 
 		// Wallet routes
 		wallets := v1.Group("/wallets")
 		{
-			wallets.POST("", r.walletHandler.CreateWallet)
+			// Public (read-only)
 			wallets.GET("/:walletId", r.walletHandler.GetWallet)
-			wallets.DELETE("/:walletId", r.walletHandler.DeleteWallet)
-			wallets.POST("/:walletId/freeze", r.walletHandler.FreezeWallet)
-			wallets.POST("/:walletId/unfreeze", r.walletHandler.UnfreezeWallet)
 			wallets.GET("/campaign/:campaignId", r.walletHandler.GetWalletByCampaign)
-			wallets.DELETE("/campaign/:campaignId", r.walletHandler.DeleteWalletByCampaign)
+
+			// Protected (mutating)
+			wallets.POST("", authMiddleware, r.walletHandler.CreateWallet)
+			wallets.DELETE("/:walletId", authMiddleware, r.walletHandler.DeleteWallet)
+			wallets.POST("/:walletId/freeze", authMiddleware, r.walletHandler.FreezeWallet)
+			wallets.POST("/:walletId/unfreeze", authMiddleware, r.walletHandler.UnfreezeWallet)
+			wallets.DELETE("/campaign/:campaignId", authMiddleware, r.walletHandler.DeleteWalletByCampaign)
 		}
 
-		// Audit routes
+		// Audit routes (all read-only, public)
 		audit := v1.Group("/audit")
 		{
 			audit.GET("/verify/:walletId", r.auditHandler.VerifyWalletChain)
 			audit.GET("/history/:walletId", r.auditHandler.GetTransactionHistory)
 			audit.GET("/count/:walletId", r.auditHandler.GetBlockCount)
-			audit.GET("/balance/:walletId", r.auditHandler.GetWalletBalance)             // Calculate balance from chain
-			audit.GET("/verified-balance/:walletId", r.auditHandler.VerifyAndGetBalance) // Verify chain + calculate balance
+			audit.GET("/balance/:walletId", r.auditHandler.GetWalletBalance)
+			audit.GET("/verified-balance/:walletId", r.auditHandler.VerifyAndGetBalance)
 		}
 	}
 

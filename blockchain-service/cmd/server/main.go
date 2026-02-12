@@ -188,9 +188,43 @@ func main() {
 				return nil
 			})
 
-			// Register default handler
+			// Register default handler — handles Spring raw DTO (no envelope)
 			contractConsumer.RegisterHandler("*", func(ctx context.Context, eventType string, payload []byte) error {
-				logger.Debug("Received unhandled contract event", zap.String("event_type", eventType))
+				var signRequest domain.ContractSignKafkaRequest
+				if err := json.Unmarshal(payload, &signRequest); err != nil {
+					logger.Warn("Received unrecognized contract event, skipping",
+						zap.String("event_type", eventType),
+						zap.Error(err),
+					)
+					return nil
+				}
+
+				// Validate that we have a valid campaign ID
+				if signRequest.CampaignID == "" {
+					logger.Warn("Contract sign request missing campaign_id, skipping")
+					return nil
+				}
+
+				logger.Info("Processing contract sign request from wildcard handler",
+					zap.String("campaign_id", signRequest.CampaignID),
+					zap.String("organizer_name", signRequest.OrganizerName),
+				)
+
+				contractReq := signRequest.ToContractCreateRequest()
+				contract, err := contractSigner.SignContract(ctx, contractReq)
+				if err != nil {
+					logger.Error("Failed to sign contract",
+						zap.String("campaign_id", signRequest.CampaignID),
+						zap.Error(err),
+					)
+					return err
+				}
+
+				logger.Info("Contract signed successfully",
+					zap.String("contract_id", contract.ContractID),
+					zap.String("campaign_id", signRequest.CampaignID),
+				)
+
 				return nil
 			})
 
