@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"blockchain-service/config"
@@ -32,7 +33,7 @@ func NewConsumer(cfg *config.KafkaConfig, topic string) *Consumer {
 		MinBytes:       10e3, // 10KB
 		MaxBytes:       10e6, // 10MB
 		MaxWait:        1 * time.Second,
-		StartOffset:    kafka.LastOffset,
+		StartOffset:    kafka.FirstOffset,
 		CommitInterval: 1 * time.Second,
 	})
 
@@ -158,10 +159,9 @@ func (c *Consumer) Stop() error {
 
 // HealthCheck checks Kafka connectivity
 func (c *Consumer) HealthCheck() error {
-	// Try to get reader stats
 	stats := c.reader.Stats()
-	if stats.Dials > 0 && stats.Errors == 0 {
-		return nil
+	if stats.Errors > 0 {
+		return fmt.Errorf("kafka consumer has %d errors (topic: %s)", stats.Errors, c.topic)
 	}
-	return nil // Basic check - just return nil if reader exists
+	return nil
 }

@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     vector_db_password: str = "tamsangpswd"
     
     # Core Service Callback Configuration
-    core_service_url: str = "http://localhost:8081"
+    # Note: core-service uses random port via Eureka; set this via .env in production
+    core_service_url: str = "http://localhost:8080"
     callback_endpoint: str = "/proofs/internal/hybrid-callback"
     callback_timeout: int = 30  # seconds
     callback_retry_count: int = 3

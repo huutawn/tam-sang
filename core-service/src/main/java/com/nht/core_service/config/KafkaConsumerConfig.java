@@ -30,7 +30,7 @@ public class KafkaConsumerConfig {
 		props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
 		props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.nht.core_service.*");
 		props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-		props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.nht.core_service.dto.event.DonationEvent");
+		props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.nht.core_service.kafka.event.ProofVerificationResultEvent");
 
 		return new DefaultKafkaConsumerFactory<>(props);
 	}

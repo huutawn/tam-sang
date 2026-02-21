@@ -21,6 +21,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Override
 	public void registerStompEndpoints(StompEndpointRegistry registry) {
 		// Register STOMP endpoint for WebSocket connection
+		// TODO: Add ChannelInterceptor to validate JWT on STOMP CONNECT for production
+		// TODO: Replace "*" with specific allowed origins for production deployment
 		registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
 	}
 }

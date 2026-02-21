@@ -50,7 +50,7 @@ public class KafkaConfig {
         configProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "com.nht.identity.*");
         configProps.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
         configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.nht.identity.dto.event.KycAnalyzedEvent");
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");

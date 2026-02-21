@@ -21,9 +21,16 @@ spring:
     redis:
       host: localhost
       port: 6379
+  kafka:
+    bootstrap-servers: localhost:9092
 
 feign:
   client:
     config:
       identity-service:
         url: http://localhost:8080
+
+kafka:
+  topics:
+    contract-sign-request: contract-sign-request
+    donation-events: donation-events

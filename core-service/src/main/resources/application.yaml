@@ -35,6 +35,10 @@ spring:
     port: 6379
     timeout: 2000ms
 
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: localhost:9092
+
 # PayOS Configuration
 payos:
   client-id: ${PAYOS_CLIENT_ID}

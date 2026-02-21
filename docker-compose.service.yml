@@ -1,0 +1,69 @@
+services:
+  # =============================================
+  # Infrastructure Services (GraalVM Native Image)
+  # =============================================
+  discovery-server:
+    build:
+      context: ./discovery-server
+      dockerfile: Dockerfile
+    image: tawn/discovery-server:latest
+
+  config-server:
+    build:
+      context: ./config-server
+      dockerfile: Dockerfile
+    image: tawn/config-server:latest
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    image: tawn/api-gateway:latest
+
+  # =============================================
+  # Java Services (JVM Layered Jar)
+  # =============================================
+  identity-service:
+    build:
+      context: ./identity-service
+      dockerfile: Dockerfile
+    image: tawn/identity-service:latest
+
+  core-service:
+    build:
+      context: ./core-service
+      dockerfile: Dockerfile
+    image: tawn/core-service:latest
+
+  # =============================================
+  # Go Services (Multi-stage Static Binary)
+  # =============================================
+  file-service:
+    build:
+      context: ./file-service
+      dockerfile: Dockerfile
+    image: tawn/file-service:latest
+
+  blockchain-service:
+    build:
+      context: ./blockchain-service
+      dockerfile: Dockerfile
+    image: tawn/blockchain-service:latest
+
+  # =============================================
+  # Python Service (Multi-stage)
+  # =============================================
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    image: tawn/ai-service:latest
+
+  # =============================================
+  # Frontend (Next.js Standalone)
+  # =============================================
+  tamsang-fe:
+    build:
+      context: ./tamsang-fe
+      dockerfile: Dockerfile
+    image: tawn/tamsang-fe:latest
