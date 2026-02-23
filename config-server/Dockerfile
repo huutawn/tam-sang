@@ -1,40 +1,15 @@
-# ========================================
-# Stage 1: Build native image with GraalVM
-# ========================================
-FROM ghcr.io/graalvm/native-image-community:21 AS builder
-
-WORKDIR /build
-
-# Copy Maven wrapper and pom.xml first for dependency caching
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
-
-# Copy source code
-COPY src/ src/
-
-# Build native image (skip tests for faster build)
-RUN ./mvnw -Pnative native:compile -DskipTests -B
-
-# ========================================
-# Stage 2: Minimal runtime
-# ========================================
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+FROM eclipse-temurin:21-jre-alpine
 
 # Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN addgroup -g 1000 appuser && adduser -D -u 1000 -G appuser appuser
 
 WORKDIR /app
 
-# Copy native binary from builder
-COPY --from=builder /build/target/config-server ./config-server
+# Copy pre-built jar from host directly into the runtime image
+COPY target/*.jar app.jar
 
 # Copy config files (needed at runtime for native classpath resources)
-COPY --from=builder /build/src/main/resources/ ./config-resources/
+COPY src/main/resources/ ./config-resources/
 
 RUN chown -R appuser:appuser /app
 USER appuser
@@ -42,6 +17,10 @@ USER appuser
 EXPOSE 8888
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:8888/actuator/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8888/actuator/health || exit 1
 
-ENTRYPOINT ["./config-server"]
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "app.jar"]

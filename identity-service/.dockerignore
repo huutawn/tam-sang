@@ -1,4 +1,4 @@
-target/
+# target/ (removed to allow COPY from host)
 .idea/
 .git/
 *.iml

@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy dependency files first for caching
-COPY pyproject.toml ./
+COPY pyproject.toml pdm.lock ./
 
 # Install PDM and export requirements, then install via pip
 RUN pip install --no-cache-dir pdm && \

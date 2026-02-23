@@ -1,5 +1,5 @@
 # Binaries
-file-service
+# file-service (removed to allow COPY from host)
 *.exe
 *.dll
 *.so

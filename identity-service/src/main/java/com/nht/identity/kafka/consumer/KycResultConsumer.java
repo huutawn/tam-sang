@@ -28,8 +28,7 @@ public class KycResultConsumer {
             attempts = "3",
             backoff = @Backoff(delay = 1000, multiplier = 2.0),
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
-            dltStrategy = org.springframework.kafka.retrytopic.DltStrategy.FAIL_ON_ERROR
-    )
+            dltStrategy = org.springframework.kafka.retrytopic.DltStrategy.FAIL_ON_ERROR)
     @KafkaListener(
             topics = "${kafka.topics.kyc-result:kyc-result}",
             groupId = "${spring.kafka.consumer.group-id:identity-service-group}")
@@ -60,8 +59,7 @@ public class KycResultConsumer {
             kycProfile.setRejectionReason("Duplicate Identity: ID number already registered for another user");
         } else {
             // No duplicate - update with extracted data
-            log.info(
-                    "No duplicate found, updating KYC profile with extracted data for kycId: {}", event.getKycId());
+            log.info("No duplicate found, updating KYC profile with extracted data for kycId: {}", event.getKycId());
             kycProfile.setFullName(event.getExtractedData().getFullName());
             kycProfile.setDob(event.getExtractedData().getDob());
             kycProfile.setIdNumber(event.getExtractedData().getIdNumber());
@@ -83,4 +81,3 @@ public class KycResultConsumer {
         log.error("KYC result processing failed after all retries, sent to DLT: kycId={}", event.getKycId());
     }
 }
-
