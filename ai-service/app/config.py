@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Kafka Configuration
-    kafka_bootstrap_servers: str = "localhost:9092"
+    kafka_bootstrap_servers: str = "kafka:29092"
     kafka_group_id: str = "ai-service-group"
     
     # KYC Verification Topics
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     enable_gemini_mock: bool = False
     
     # Vector Database Configuration (pgvector)
-    vector_db_host: str = "localhost"
+    vector_db_host: str = "postgres-tamsang"
     vector_db_port: int = 5432
     vector_db_name: str = "tamsang_vector_db"
     vector_db_user: str = "postgres"
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     
     # Core Service Callback Configuration
     # Note: core-service uses random port via Eureka; set this via .env in production
-    core_service_url: str = "http://localhost:8080"
+    core_service_url: str = "http://api-gateway:8080"
     callback_endpoint: str = "/proofs/internal/hybrid-callback"
     callback_timeout: int = 30  # seconds
     callback_retry_count: int = 3

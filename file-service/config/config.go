@@ -32,12 +32,13 @@ type EurekaConfig struct {
 }
 
 type MinioConfig struct {
-	Endpoint  string
-	AccessKey string
-	SecretKey string
-	Bucket    string
-	UseSSL    bool
-	Region    string
+	Endpoint       string
+	PublicEndpoint string
+	AccessKey      string
+	SecretKey      string
+	Bucket         string
+	UseSSL         bool
+	Region         string
 }
 
 type UploadConfig struct {
@@ -86,12 +87,13 @@ func Load() (*Config, error) {
 			Duration:        viper.GetInt("EUREKA_DURATION"),
 		},
 		Minio: MinioConfig{
-			Endpoint:  viper.GetString("MINIO_ENDPOINT"),
-			AccessKey: viper.GetString("MINIO_ACCESS_KEY"),
-			SecretKey: viper.GetString("MINIO_SECRET_KEY"),
-			Bucket:    viper.GetString("MINIO_BUCKET"),
-			UseSSL:    viper.GetBool("MINIO_USE_SSL"),
-			Region:    viper.GetString("MINIO_REGION"),
+			Endpoint:       viper.GetString("MINIO_ENDPOINT"),
+			PublicEndpoint: viper.GetString("MINIO_PUBLIC_ENDPOINT"),
+			AccessKey:      viper.GetString("MINIO_ACCESS_KEY"),
+			SecretKey:      viper.GetString("MINIO_SECRET_KEY"),
+			Bucket:         viper.GetString("MINIO_BUCKET"),
+			UseSSL:         viper.GetBool("MINIO_USE_SSL"),
+			Region:         viper.GetString("MINIO_REGION"),
 		},
 		Upload: UploadConfig{
 			MaxFileSize:      viper.GetInt64("MAX_FILE_SIZE"),
@@ -119,12 +121,13 @@ func setDefaults() {
 	viper.SetDefault("SERVICE_PORT", "8083")
 	viper.SetDefault("SERVICE_HOST", "0.0.0.0")
 
-	viper.SetDefault("EUREKA_URL", "http://localhost:8761/eureka")
-	viper.SetDefault("EUREKA_INSTANCE_IP", "localhost")
+	viper.SetDefault("EUREKA_URL", "http://discovery-server:8761/eureka")
+	viper.SetDefault("EUREKA_INSTANCE_IP", "file-service")
 	viper.SetDefault("EUREKA_RENEWAL_INTERVAL", 5)
 	viper.SetDefault("EUREKA_DURATION", 10)
 
-	viper.SetDefault("MINIO_ENDPOINT", "localhost:9000")
+	viper.SetDefault("MINIO_ENDPOINT", "minio:9000")
+	viper.SetDefault("MINIO_PUBLIC_ENDPOINT", "localhost:9000")
 	viper.SetDefault("MINIO_ACCESS_KEY", "minioadmin")
 	viper.SetDefault("MINIO_SECRET_KEY", "minioadmin")
 	viper.SetDefault("MINIO_BUCKET", "file-service-bucket")

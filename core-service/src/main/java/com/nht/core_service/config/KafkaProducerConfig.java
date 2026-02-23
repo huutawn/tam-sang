@@ -16,7 +16,7 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 @Configuration
 public class KafkaProducerConfig {
 
-	@Value("${spring.kafka.bootstrap-servers:localhost:9092}")
+	@Value("${spring.kafka.bootstrap-servers:kafka:29092}")
 	private String bootstrapServers;
 
 	@Bean

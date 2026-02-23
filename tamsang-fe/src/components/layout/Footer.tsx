@@ -1,98 +1,106 @@
+"use client";
+
 import Link from "next/link";
-import { Heart, Mail, Phone, Facebook, Twitter, Instagram, Youtube } from "lucide-react";
+import { Heart, Facebook, Instagram, Send } from "lucide-react";
+import { useState } from "react";
 
 const footerLinks = {
     platform: [
-        { name: "Trang chủ", href: "/" },
-        { name: "Chiến dịch", href: "/campaigns" },
         { name: "Cách hoạt động", href: "/how-it-works" },
-        { name: "Về chúng tôi", href: "/about" },
+        { name: "Kiểm toán Blockchain", href: "/blockchain-audit" },
+        { name: "Xác minh AI", href: "/ai-verification" },
+        { name: "Bảng giá", href: "/pricing" },
+    ],
+    campaigns: [
+        { name: "Xem tất cả", href: "/campaigns" },
+        { name: "Y tế", href: "/campaigns?category=healthcare" },
+        { name: "Giáo dục", href: "/campaigns?category=education" },
+        { name: "Khẩn cấp", href: "/campaigns?category=emergency" },
+        { name: "Tạo chiến dịch", href: "/campaigns/create" },
     ],
     support: [
         { name: "Trung tâm hỗ trợ", href: "/help" },
-        { name: "Câu hỏi thường gặp", href: "/faq" },
         { name: "Liên hệ", href: "/contact" },
-        { name: "Báo cáo vi phạm", href: "/report" },
-    ],
-    legal: [
-        { name: "Điều khoản sử dụng", href: "/terms" },
-        { name: "Chính sách bảo mật", href: "/privacy" },
-        { name: "Quy chế hoạt động", href: "/regulations" },
+        { name: "An toàn & Tin cậy", href: "/trust-safety" },
+        { name: "Pháp lý", href: "/legal" },
     ],
 };
 
 const socialLinks = [
     { name: "Facebook", href: "https://facebook.com", icon: Facebook },
-    { name: "Twitter", href: "https://twitter.com", icon: Twitter },
     { name: "Instagram", href: "https://instagram.com", icon: Instagram },
-    { name: "Youtube", href: "https://youtube.com", icon: Youtube },
 ];
 
 export function Footer() {
     const currentYear = new Date().getFullYear();
+    const [email, setEmail] = useState("");
 
     return (
-        <footer className="border-t bg-muted/30">
-            <div className="container px-4 py-12 md:px-6">
-                <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
-                    {/* Brand & Description */}
-                    <div className="lg:col-span-2">
+        <footer className="bg-gradient-to-b from-[#0d3622] to-[#0a2a1a] text-emerald-100">
+            <div className="container px-4 py-14 md:px-6">
+                <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
+                    {/* Brand column */}
+                    <div className="lg:col-span-2 space-y-5">
                         <Link href="/" className="flex items-center space-x-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-emerald-500 to-emerald-700">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600">
                                 <Heart className="h-5 w-5 text-white" />
                             </div>
-                            <span className="text-xl font-bold bg-linear-to-r from-emerald-600 to-emerald-800 bg-clip-text text-transparent">
-                                TamSang
-                            </span>
+                            <span className="text-xl font-bold text-white">TamSang</span>
                         </Link>
-                        <p className="mt-4 max-w-xs text-sm text-muted-foreground">
-                            Hệ sinh thái thiện nguyện minh bạch, nơi mọi đóng góp được theo dõi, xác minh bởi AI và ghi lại trên blockchain.
+
+                        <p className="max-w-xs text-sm text-emerald-300/70 leading-relaxed">
+                            Thiện nguyện minh bạch, được vận hành bởi công nghệ.
                         </p>
 
-                        {/* Contact Info */}
-                        <div className="mt-6 space-y-2">
-                            <a
-                                href="mailto:support@tamsang.org"
-                                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-emerald-600 transition-colors"
-                            >
-                                <Mail className="h-4 w-4" />
-                                support@tamsang.org
-                            </a>
-                            <a
-                                href="tel:+84123456789"
-                                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-emerald-600 transition-colors"
-                            >
-                                <Phone className="h-4 w-4" />
-                                +84 123 456 789
-                            </a>
-                        </div>
-
-                        {/* Social Links */}
-                        <div className="mt-6 flex gap-3">
+                        {/* Social icons */}
+                        <div className="flex gap-3">
                             {socialLinks.map((social) => (
                                 <a
                                     key={social.name}
                                     href={social.href}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-emerald-100 hover:text-emerald-600"
+                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-800/50 text-emerald-300 transition-colors hover:bg-emerald-700 hover:text-white"
                                     aria-label={social.name}
                                 >
                                     <social.icon className="h-4 w-4" />
                                 </a>
                             ))}
                         </div>
+
+                        {/* Email subscription */}
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                setEmail("");
+                            }}
+                            className="flex gap-2"
+                        >
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="Email của bạn"
+                                className="flex-1 rounded-lg bg-emerald-900/60 border border-emerald-700/40 px-3 py-2 text-sm text-white placeholder:text-emerald-400/50 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                            <button
+                                type="submit"
+                                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-400 transition-colors"
+                            >
+                                Đăng ký
+                            </button>
+                        </form>
                     </div>
 
-                    {/* Platform Links */}
+                    {/* Platform links */}
                     <div>
-                        <h3 className="text-sm font-semibold text-foreground">Nền tảng</h3>
-                        <ul className="mt-4 space-y-2">
+                        <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wide">Nền Tảng</h3>
+                        <ul className="mt-4 space-y-2.5">
                             {footerLinks.platform.map((link) => (
                                 <li key={link.name}>
                                     <Link
                                         href={link.href}
-                                        className="text-sm text-muted-foreground transition-colors hover:text-emerald-600"
+                                        className="text-sm text-emerald-300/70 transition-colors hover:text-white"
                                     >
                                         {link.name}
                                     </Link>
@@ -101,32 +109,32 @@ export function Footer() {
                         </ul>
                     </div>
 
-                    {/* Support Links */}
+                    {/* Campaign links */}
                     <div>
-                        <h3 className="text-sm font-semibold text-foreground">Hỗ trợ</h3>
-                        <ul className="mt-4 space-y-2">
+                        <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wide">Chiến Dịch</h3>
+                        <ul className="mt-4 space-y-2.5">
+                            {footerLinks.campaigns.map((link) => (
+                                <li key={link.name}>
+                                    <Link
+                                        href={link.href}
+                                        className="text-sm text-emerald-300/70 transition-colors hover:text-white"
+                                    >
+                                        {link.name}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    {/* Support links */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wide">Hỗ Trợ</h3>
+                        <ul className="mt-4 space-y-2.5">
                             {footerLinks.support.map((link) => (
                                 <li key={link.name}>
                                     <Link
                                         href={link.href}
-                                        className="text-sm text-muted-foreground transition-colors hover:text-emerald-600"
-                                    >
-                                        {link.name}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    {/* Legal Links */}
-                    <div>
-                        <h3 className="text-sm font-semibold text-foreground">Pháp lý</h3>
-                        <ul className="mt-4 space-y-2">
-                            {footerLinks.legal.map((link) => (
-                                <li key={link.name}>
-                                    <Link
-                                        href={link.href}
-                                        className="text-sm text-muted-foreground transition-colors hover:text-emerald-600"
+                                        className="text-sm text-emerald-300/70 transition-colors hover:text-white"
                                     >
                                         {link.name}
                                     </Link>
@@ -136,17 +144,20 @@ export function Footer() {
                     </div>
                 </div>
 
-                {/* Bottom Bar */}
-                <div className="mt-12 border-t pt-8">
+                {/* Bottom bar */}
+                <div className="mt-12 border-t border-emerald-800/50 pt-6">
                     <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-                        <p className="text-sm text-muted-foreground">
-                            © {currentYear} TamSang. Tất cả quyền được bảo lưu.
+                        <p className="text-xs text-emerald-400/60">
+                            © {currentYear} TamSang. Được xây dựng với{" "}
+                            <Heart className="inline h-3 w-3 text-red-400" /> cho sự minh bạch.
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                            Được xây dựng với{" "}
-                            <Heart className="inline h-3 w-3 text-red-500" /> bởi đội ngũ
-                            TamSang
-                        </p>
+                        <div className="flex flex-wrap gap-4 text-xs text-emerald-400/60">
+                            <Link href="/privacy" className="hover:text-white transition-colors">Chính sách bảo mật</Link>
+                            <span>•</span>
+                            <Link href="/terms" className="hover:text-white transition-colors">Điều khoản</Link>
+                            <span>•</span>
+                            <Link href="/cookies" className="hover:text-white transition-colors">Cookies</Link>
+                        </div>
                     </div>
                 </div>
             </div>

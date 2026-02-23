@@ -62,8 +62,8 @@ services:
   # =============================================
   # Frontend (Next.js Standalone)
   # =============================================
-  tamsang-fe:
-    build:
-      context: ./tamsang-fe
-      dockerfile: Dockerfile
-    image: tawn/tamsang-fe:latest
+  # tamsang-fe:
+  #   build:
+  #     context: ./tamsang-fe
+  #     dockerfile: Dockerfile
+  #   image: tawn/tamsang-fe:latest

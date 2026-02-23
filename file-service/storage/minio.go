@@ -204,13 +204,13 @@ func (s *MinioStorage) UploadMultipleFiles(ctx context.Context, files []*multipa
 	return response, nil
 }
 
-// generateURL generates the accessible URL for a file
+// generateURL generates the accessible URL for a file (uses public endpoint for browser access)
 func (s *MinioStorage) generateURL(objectName string) string {
 	protocol := "http"
 	if s.config.UseSSL {
 		protocol = "https"
 	}
-	return fmt.Sprintf("%s://%s/%s/%s", protocol, s.config.Endpoint, s.config.Bucket, objectName)
+	return fmt.Sprintf("%s://%s/%s/%s", protocol, s.config.PublicEndpoint, s.config.Bucket, objectName)
 }
 
 // GetPresignedURL generates a presigned URL for file download

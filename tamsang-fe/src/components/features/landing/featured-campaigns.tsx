@@ -1,78 +1,152 @@
-"use client"
+"use client";
 
-import { useCampaigns } from "@/hooks/use-campaigns"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import { motion } from "framer-motion";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useRef } from "react";
+import { CampaignCard } from "@/components/features/campaigns/campaign-card";
+
+// Mock data – sẽ được thay bằng API thật sau này
+const MOCK_CAMPAIGNS = [
+    {
+        id: "1",
+        imageUrl: "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&q=75",
+        title: "Nước Sạch Cho Vùng Cao Hà Giang",
+        description: "Xây dựng hệ thống lọc nước bền vững cho 500 hộ gia đình ở các bản làng vùng núi Hà Giang. Mỗi giọt nước đều quý giá.",
+        location: "Tỉnh Hà Giang",
+        currentAmount: 45000000,
+        targetAmount: 45000000,
+        badge: "Đạt mục tiêu trong 12 ngày",
+        isVerified: true,
+    },
+    {
+        id: "2",
+        imageUrl: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=600&q=75",
+        title: "Giáo Dục Cho Trẻ Em TP.HCM",
+        description: "Cung cấp đồ dùng học tập, đồng phục và bữa ăn trưa cho trẻ em có hoàn cảnh khó khăn tại thành phố Hồ Chí Minh.",
+        location: "TP. Hồ Chí Minh",
+        currentAmount: 28000000,
+        targetAmount: 50000000,
+        badge: undefined,
+        isVerified: true,
+    },
+    {
+        id: "3",
+        imageUrl: "https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?w=600&q=75",
+        title: "Hỗ Trợ Y Tế Bệnh Nhân Ung Thư",
+        description: "Giúp đỡ chi phí điều trị cho bệnh nhân ung thư nghèo tại các bệnh viện lớn trên toàn quốc.",
+        location: "Hà Nội",
+        currentAmount: 120000000,
+        targetAmount: 200000000,
+        badge: undefined,
+        isVerified: true,
+    },
+    {
+        id: "4",
+        imageUrl: "https://images.unsplash.com/photo-1509099836639-18ba1795216d?w=600&q=75",
+        title: "Xây Cầu Bắc Qua Sông Cho Bản Làng",
+        description: "Xây cầu bê tông kiên cố thay thế cầu treo cũ xuống cấp, đảm bảo an toàn cho hàng trăm người dân đi lại mỗi ngày.",
+        location: "Tỉnh Lai Châu",
+        currentAmount: 80000000,
+        targetAmount: 150000000,
+        badge: "Khẩn cấp",
+        isVerified: false,
+    },
+    {
+        id: "5",
+        imageUrl: "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=600&q=75",
+        title: "Cứu Trợ Lũ Lụt Miền Trung",
+        description: "Hỗ trợ khẩn cấp lương thực, nước uống và nơi ở tạm cho người dân vùng lũ tại các tỉnh miền Trung Việt Nam.",
+        location: "Tỉnh Quảng Bình",
+        currentAmount: 350000000,
+        targetAmount: 500000000,
+        badge: undefined,
+        isVerified: true,
+    },
+];
 
 export function FeaturedCampaigns() {
-    const { data: campaigns, isLoading, isError } = useCampaigns()
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(true);
 
-    // Dummy fallback for visual demo if API fails/is empty
-    const displayCampaigns = isError || !campaigns || campaigns.length === 0 ? [] : campaigns
+    const checkScroll = () => {
+        const el = scrollRef.current;
+        if (!el) return;
+        setCanScrollLeft(el.scrollLeft > 10);
+        setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 10);
+    };
+
+    const scroll = (direction: "left" | "right") => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const amount = direction === "left" ? -380 : 380;
+        el.scrollBy({ left: amount, behavior: "smooth" });
+        setTimeout(checkScroll, 350);
+    };
 
     return (
-        <section className="container py-12 md:py-24 lg:py-32">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-10">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Featured Campaigns</h2>
-                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                    Urgent causes that need your immediate attention and support.
-                </p>
-            </div>
+        <section className="py-16 md:py-24 bg-muted/30">
+            <div className="container px-4 md:px-6">
+                {/* Section header */}
+                <div className="flex items-end justify-between mb-10">
+                    <div>
+                        <motion.h2
+                            initial={{ opacity: 0, y: 10 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+                        >
+                            Chiến Dịch Nổi Bật
+                        </motion.h2>
+                        <p className="mt-2 text-muted-foreground max-w-lg">
+                            Những chiến dịch cần sự quan tâm và hỗ trợ ngay từ cộng đồng.
+                        </p>
+                    </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[minmax(300px,auto)]">
-                {isLoading ? (
-                    <>
-                        {/* Bento Grid Skeletons: 1 large span-2, 2 small */}
-                        <Skeleton className="md:col-span-2 md:row-span-2 h-[400px] md:h-full rounded-xl" />
-                        <Skeleton className="md:col-span-1 h-[300px] rounded-xl" />
-                        <Skeleton className="md:col-span-1 h-[300px] rounded-xl" />
-                    </>
-                ) : (
-                    <>
-                        {/* If we have campaigns, display them. For Bento, first one is large. */}
-                        {displayCampaigns.length > 0 ? (
-                            displayCampaigns.map((campaign, index) => {
-                                const isLarge = index === 0;
-                                return (
-                                    <Card key={campaign.id} className={cn("flex flex-col overflow-hidden", isLarge ? "md:col-span-2 md:row-span-2" : "md:col-span-1")}>
-                                        <div className={cn("relative bg-muted", isLarge ? "h-64 md:h-80" : "h-40")}>
-                                            {/* Placeholder for Image */}
-                                            {campaign.imageUrl && (
-                                                <img
-                                                    src={campaign.imageUrl}
-                                                    alt={campaign.title}
-                                                    className="h-full w-full object-cover transition-transform hover:scale-105 duration-500"
-                                                />
-                                            )}
-                                        </div>
-                                        <CardHeader>
-                                            <CardTitle className={cn(isLarge ? "text-2xl" : "text-xl")}>{campaign.title}</CardTitle>
-                                            <CardDescription className="line-clamp-2">{campaign.description}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="flex-1">
-                                            <div className="space-y-2">
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="font-medium text-emerald-600">${campaign.currentAmount.toLocaleString()}</span>
-                                                    <span className="text-muted-foreground">of ${campaign.targetAmount.toLocaleString()}</span>
-                                                </div>
-                                                <Progress value={(campaign.currentAmount / campaign.targetAmount) * 100} />
-                                            </div>
-                                        </CardContent>
-                                        <CardFooter>
-                                            <Button className="w-full" variant={isLarge ? "default" : "secondary"}>Donate Now</Button>
-                                        </CardFooter>
-                                    </Card>
-                                )
-                            })
-                        ) : (
-                            <div className="col-span-full text-center text-muted-foreground">No active campaigns found at the moment.</div>
-                        )}
-                    </>
-                )}
+                    {/* Navigation arrows */}
+                    <div className="hidden sm:flex gap-2">
+                        <button
+                            onClick={() => scroll("left")}
+                            disabled={!canScrollLeft}
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                            aria-label="Cuộn sang trái"
+                        >
+                            <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <button
+                            onClick={() => scroll("right")}
+                            disabled={!canScrollRight}
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                            aria-label="Cuộn sang phải"
+                        >
+                            <ChevronRight className="h-5 w-5" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Horizontal scroll row */}
+                <div
+                    ref={scrollRef}
+                    onScroll={checkScroll}
+                    className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                >
+                    {MOCK_CAMPAIGNS.map((c) => (
+                        <div key={c.id} className="snap-start">
+                            <CampaignCard
+                                imageUrl={c.imageUrl}
+                                title={c.title}
+                                description={c.description}
+                                location={c.location}
+                                currentAmount={c.currentAmount}
+                                targetAmount={c.targetAmount}
+                                badge={c.badge}
+                                isVerified={c.isVerified}
+                            />
+                        </div>
+                    ))}
+                </div>
             </div>
         </section>
-    )
+    );
 }

@@ -19,16 +19,16 @@ spring:
     mongodb:
       database: campaigns_db
     redis:
-      host: localhost
+      host: redis
       port: 6379
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka:29092
 
 feign:
   client:
     config:
       identity-service:
-        url: http://localhost:8080
+        url: http://api-gateway:8080
 
 kafka:
   topics:
