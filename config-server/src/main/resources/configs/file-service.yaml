@@ -1,6 +1,6 @@
 # Minio Configuration
 minio:
-  endpoint: http://minio:9000
+  endpoint: http://localhost:9000
   access-key: minioadmin
   secret-key: minioadmin
   bucket-name: file-service-bucket

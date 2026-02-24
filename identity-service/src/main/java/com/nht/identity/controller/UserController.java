@@ -4,7 +4,6 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.nht.identity.dto.request.UserCreationRequest;
@@ -35,7 +34,6 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<UserResponse>> getAll() {
         List<UserResponse> result = userService.getUsers();
         return new ApiResponse<>(1000, null, result);

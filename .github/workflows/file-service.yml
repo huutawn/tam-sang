@@ -1,0 +1,38 @@
+name: Build & Push file-service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "file-service/**"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: file-service/go.sum
+
+      - name: Build binary
+        run: CGO_ENABLED=0 GOOS=linux go build -o file-service .
+        working-directory: file-service
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: file-service
+          push: true
+          tags: tawn/file-service:latest

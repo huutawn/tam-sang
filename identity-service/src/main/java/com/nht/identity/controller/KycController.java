@@ -25,10 +25,9 @@ public class KycController {
 
     @PostMapping(value = "/submit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<KycSubmitResponse> submitKyc(
-            @RequestParam("userId") String userId,
             @RequestPart("frontImage") @NotNull MultipartFile frontImage,
             @RequestPart("backImage") @NotNull MultipartFile backImage) {
-
+        String userId = null;
         log.info("Received KYC submission request for userId: {}", userId);
 
         KycSubmitResponse response = kycService.submitKyc(userId, frontImage, backImage);

@@ -36,7 +36,8 @@ public class SecurityConfig {
         // Swagger/OpenAPI documentation
         "/v3/api-docs/**",
         "/swagger-ui/**",
-        "/swagger-ui.html"
+        "/swagger-ui.html",
+        "/donations/**"
     };
 
     private final CustomJwtDecoder customJwtDecoder;

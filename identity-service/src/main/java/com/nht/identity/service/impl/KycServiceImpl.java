@@ -42,13 +42,12 @@ public class KycServiceImpl implements KycService {
     @Transactional
     public KycSubmitResponse submitKyc(String userId, MultipartFile frontImage, MultipartFile backImage) {
         log.info("Submitting KYC for userId: {}", userId);
-        if (userId == null) {
-            String email = SecurityUtils.getCurrentUserJwt().get();
-            userId = userRepository
-                    .findByEmail(email)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED))
-                    .getId();
-        }
+
+        String email = SecurityUtils.getCurrentUserLogin().get();
+        userId = userRepository
+                .findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED))
+                .getId();
 
         // Upload front image to File Service
         log.info("Uploading front image for userId: {}", userId);

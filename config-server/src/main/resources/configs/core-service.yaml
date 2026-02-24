@@ -1,0 +1,9 @@
+# Core Service Configuration Override
+# This file overrides the shared configurations in application.yaml for core-service
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+  flyway:
+    enabled: false
