@@ -17,9 +17,6 @@ WORKDIR /app
 # Copy binary from host (must be built locally first)
 COPY blockchain-service .
 
-# Copy .env.example as reference
-COPY .env.example .env.example
-
 # Change ownership
 RUN chown -R appuser:appgroup /app
 

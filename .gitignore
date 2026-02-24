@@ -403,3 +403,4 @@
 *.pyd
 *.pyc
 *.pyo
+.env
