@@ -81,7 +81,7 @@ public class GatewayConfig {
                        })
                 .filter(stripPrefix(2))
                 .build();
-    }
+    }//
 
     @Bean
     public RouterFunction<ServerResponse> aiServiceRoute() {

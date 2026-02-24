@@ -187,7 +187,7 @@ func main() {
 
 				return nil
 			})
-
+//
 			// Register default handler — handles Spring raw DTO (no envelope)
 			contractConsumer.RegisterHandler("*", func(ctx context.Context, eventType string, payload []byte) error {
 				var signRequest domain.ContractSignKafkaRequest

@@ -22,6 +22,10 @@ jobs:
           cache: maven
           cache-dependency-path: config-server/pom.xml
 
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+        working-directory: config-server
+
       - name: Build JAR
         run: ./mvnw clean package -DskipTests
         working-directory: config-server

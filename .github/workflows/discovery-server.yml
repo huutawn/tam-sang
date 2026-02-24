@@ -22,6 +22,10 @@ jobs:
           cache: maven
           cache-dependency-path: discovery-server/pom.xml
 
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+        working-directory: discovery-server
+
       - name: Build JAR
         run: ./mvnw clean package -DskipTests
         working-directory: discovery-server

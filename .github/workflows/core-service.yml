@@ -22,6 +22,10 @@ jobs:
           cache: maven
           cache-dependency-path: core-service/pom.xml
 
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+        working-directory: core-service
+
       - name: Build JAR
         run: ./mvnw clean package -DskipTests
         working-directory: core-service

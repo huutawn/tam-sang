@@ -18,7 +18,7 @@ public class KycEventProducer {
 
     @Value("${kafka.topics.kyc-verification:kyc-verification}")
     private String kycVerificationTopic;
-
+//
     public void publishKycInitiatedEvent(KycInitiatedEvent event) {
         log.info("Publishing KycInitiatedEvent for kycId: {}", event.getKycId());
         kafkaTemplate.send(kycVerificationTopic, event.getKycId(), event).whenComplete((result, ex) -> {

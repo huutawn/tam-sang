@@ -22,6 +22,10 @@ jobs:
           cache: maven
           cache-dependency-path: identity-service/pom.xml
 
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+        working-directory: identity-service
+
       - name: Build JAR
         run: ./mvnw clean package -DskipTests
         working-directory: identity-service

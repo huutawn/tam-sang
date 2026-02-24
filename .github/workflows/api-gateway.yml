@@ -22,6 +22,10 @@ jobs:
           cache: maven
           cache-dependency-path: api-gateway/pom.xml
 
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+        working-directory: api-gateway
+
       - name: Build JAR
         run: ./mvnw clean package -DskipTests
         working-directory: api-gateway
