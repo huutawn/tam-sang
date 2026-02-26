@@ -1,5 +1,7 @@
 package com.nht.core_service.controller;
 
+import java.util.List;
+
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
@@ -8,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import com.nht.core_service.dto.request.DonationCompleteRequest;
 import com.nht.core_service.dto.request.InitDonationRequest;
 import com.nht.core_service.dto.response.ApiResponse;
+import com.nht.core_service.dto.response.LiveDonationResponse;
 import com.nht.core_service.service.DonationService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,5 +34,11 @@ public class DonationController {
 			@Valid @RequestBody DonationCompleteRequest request) {
 		donationService.completeDonation(request);
 		return ResponseEntity.ok(new ApiResponse<>("Donation completed successfully", null));
+	}
+
+	@GetMapping("/recent")
+	public ResponseEntity<ApiResponse<List<LiveDonationResponse>>> getRecentDonations() {
+		List<LiveDonationResponse> donations = donationService.getRecentCompletedDonations();
+		return ResponseEntity.ok(new ApiResponse<>("Success", donations));
 	}
 }

@@ -157,13 +157,13 @@ func setDefaults() {
 	viper.SetDefault("SERVICE_HOST", "0.0.0.0")
 
 	// Eureka defaults
-	viper.SetDefault("EUREKA_URL", "http://discovery-server:8761/eureka")
+	viper.SetDefault("EUREKA_URL", "http://localhost:8761/eureka")
 	viper.SetDefault("EUREKA_INSTANCE_IP", "blockchain-service")
 	viper.SetDefault("EUREKA_RENEWAL_INTERVAL", 5)
 	viper.SetDefault("EUREKA_DURATION", 10)
 
 	// Database defaults
-	viper.SetDefault("DB_HOST", "postgres-tamsang")
+	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", "5432")
 	viper.SetDefault("DB_USER", "postgres")
 	viper.SetDefault("DB_PASSWORD", "tamsangpswd")
@@ -171,7 +171,7 @@ func setDefaults() {
 	viper.SetDefault("DB_SSL_MODE", "disable")
 
 	// Kafka defaults
-	viper.SetDefault("KAFKA_BROKERS", "kafka:29092")
+	viper.SetDefault("KAFKA_BROKERS", "localhost:9092")
 	viper.SetDefault("KAFKA_CONSUMER_GROUP", "blockchain-service-group")
 	viper.SetDefault("KAFKA_TOPIC_TRANSACTION_EVENTS", "transaction-events")
 	viper.SetDefault("KAFKA_TOPIC_AUDIT_RESULTS", "audit-results")

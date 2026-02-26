@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import com.nht.core_service.dto.response.CampaignResponse;
 import com.nht.core_service.dto.response.DonationResponse;
+import com.nht.core_service.dto.response.LiveDonationResponse;
 import com.nht.core_service.dto.response.ProofResponse;
 import com.nht.core_service.dto.websocket.CampaignActivityMessage;
 import com.nht.core_service.dto.websocket.CampaignStatsMessage;
@@ -53,5 +54,13 @@ public class WebSocketServiceImpl implements WebSocketService {
 		String destination = "/topic/campaign/" + message.campaignId() + "/activities";
 		messagingTemplate.convertAndSend(destination, message);
 		log.info("Sent campaign activity to {}: type={}", destination, message.activityType());
+	}
+
+	@Override
+	public void sendLiveDonationUpdate(LiveDonationResponse donation) {
+		String destination = "/topic/donations/live-feed";
+		messagingTemplate.convertAndSend(destination, donation);
+		log.info("Sent live donation update to {}: donor={}, amount={}", 
+			destination, donation.donorFullName(), donation.amount());
 	}
 }

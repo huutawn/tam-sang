@@ -17,6 +17,32 @@ export interface ImpactStats {
   totalCampaigns: number;
 }
 
+export interface CampaignPageItem {
+  id: string;
+  title: string;
+  content: string;
+  targetAmount: number;
+  currentAmount: number;
+  usedAmount: number;
+  images: string[];
+  status: string;
+  startDate: string | null;
+  endDate: string | null;
+  ownerId: string;
+  hasUsedQuickWithdrawal: boolean;
+  likeCount: number;
+  viewCount: number;
+  commentCount: number;
+}
+
+export interface PagedCampaignsResponse {
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  totalElements: number;
+  data: CampaignPageItem[];
+}
+
 export const CampaignService = {
   /**
    * Lấy thống kê tổng quan (Public endpoint)
@@ -58,6 +84,16 @@ export const CampaignService = {
   getAllCampaigns: async (params?: Record<string, unknown>): Promise<Campaign[]> => {
     const response = await apiClient.get<Campaign[]>(API_ENDPOINTS.CAMPAIGNS.LIST, {
       params,
+    });
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách chiến dịch phân trang (Public endpoint)
+   */
+  getPagedCampaigns: async (page: number = 1, size: number = 20): Promise<PagedCampaignsResponse> => {
+    const response = await apiClient.get<PagedCampaignsResponse>(API_ENDPOINTS.CAMPAIGNS.LIST, {
+      params: { page, size },
     });
     return response.data;
   },

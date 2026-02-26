@@ -1,6 +1,6 @@
 # Minio Configuration
 minio:
-  endpoint: http://localhost:9000
+  endpoint: http://${MINIO_HOST:localhost}:${MINIO_PORT:9000}
   access-key: minioadmin
   secret-key: minioadmin
   bucket-name: file-service-bucket
@@ -25,8 +25,8 @@ upload:
 # Security Settings
 security:
   cors-allowed-origins:
-    - http://localhost:3000
-    - http://localhost:8080
+    - http://${FE_HOST:localhost}:${FE_PORT:3000}
+    - http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}
   rate-limit:
     requests: 100
     duration: 60 # seconds

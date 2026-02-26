@@ -8,6 +8,13 @@ export function useCampaigns() {
   });
 }
 
+export function useFeaturedCampaigns(page: number = 1, size: number = 20) {
+  return useQuery({
+    queryKey: ['campaigns', 'paged', page, size],
+    queryFn: () => CampaignService.getPagedCampaigns(page, size),
+  });
+}
+
 export function useImpactStats() {
     return useQuery({
         queryKey: ['impact-stats'],

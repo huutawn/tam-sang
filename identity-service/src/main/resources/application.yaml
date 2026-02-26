@@ -4,9 +4,9 @@ spring:
   application:
     name: identity-service
   config:
-    import: "optional:configserver:http://localhost:8888"
+    import: "optional:configserver:http://${CONFIG_SERVER_HOST:localhost}:${CONFIG_SERVER_PORT:8888}"
   datasource:
-    url: jdbc:postgresql://localhost:5432/identity
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/identity
     driver-class-name: org.postgresql.Driver
     username: postgres
     password: ${POSTGRES_PASSWORD}

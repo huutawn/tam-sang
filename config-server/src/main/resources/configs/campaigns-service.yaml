@@ -19,18 +19,19 @@ spring:
     mongodb:
       database: campaigns_db
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
 
 feign:
   client:
     config:
       identity-service:
-        url: http://localhost:8080
+        url: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}
 
 kafka:
   topics:
     contract-sign-request: contract-sign-request
     donation-events: donation-events
+#

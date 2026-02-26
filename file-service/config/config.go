@@ -121,12 +121,12 @@ func setDefaults() {
 	viper.SetDefault("SERVICE_PORT", "8083")
 	viper.SetDefault("SERVICE_HOST", "0.0.0.0")
 
-	viper.SetDefault("EUREKA_URL", "http://discovery-server:8761/eureka")
+	viper.SetDefault("EUREKA_URL", "http://localhost:8761/eureka")
 	viper.SetDefault("EUREKA_INSTANCE_IP", "file-service")
 	viper.SetDefault("EUREKA_RENEWAL_INTERVAL", 5)
 	viper.SetDefault("EUREKA_DURATION", 10)
 
-	viper.SetDefault("MINIO_ENDPOINT", "minio:9000")
+	viper.SetDefault("MINIO_ENDPOINT", "localhost:9000")
 	viper.SetDefault("MINIO_PUBLIC_ENDPOINT", "localhost:9000")
 	viper.SetDefault("MINIO_ACCESS_KEY", "minioadmin")
 	viper.SetDefault("MINIO_SECRET_KEY", "minioadmin")

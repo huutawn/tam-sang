@@ -3,9 +3,12 @@ package com.nht.core_service.service.impl;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +27,7 @@ import com.nht.core_service.document.ProcessEvent;
 import com.nht.core_service.dto.event.DonationEvent;
 import com.nht.core_service.dto.request.DonationCompleteRequest;
 import com.nht.core_service.dto.request.InitDonationRequest;
+import com.nht.core_service.dto.response.LiveDonationResponse;
 import com.nht.core_service.dto.request.PaymentWebhookRequest;
 import com.nht.core_service.dto.websocket.CampaignActivityMessage;
 import com.nht.core_service.dto.websocket.CampaignStatsMessage;
@@ -216,8 +220,46 @@ public class DonationServiceImpl implements DonationService {
 			log.error("Failed to send WebSocket notifications for campaign={}", request.campaignId(), e);
 		}
 
+		// WebSocket: Send live donation feed update for landing page
+		try {
+			String campaignTitle = (campaign != null) ? campaign.getTitle() : "";
+			LiveDonationResponse liveDonation = new LiveDonationResponse(
+					request.donationId(),
+					request.donorName(),
+					campaignTitle,
+					request.amount(),
+					LocalDateTime.now());
+			webSocketService.sendLiveDonationUpdate(liveDonation);
+		} catch (Exception e) {
+			log.error("Failed to send live donation feed update for donationId={}", request.donationId(), e);
+		}
+
 		log.info("Donation completed successfully: donationId={}, txHash={}", 
 				request.donationId(), request.transactionHash());
+	}
+
+	@Override
+	public List<LiveDonationResponse> getRecentCompletedDonations() {
+		List<Donation> donations = donationRepository
+				.findTop10ByPaymentStatusOrderByCreatedAtDesc(PaymentStatus.COMPLETED);
+
+		// Collect unique campaignIds and batch-fetch campaign titles from MongoDB
+		List<String> campaignIds = donations.stream()
+				.map(Donation::getCampaignId)
+				.distinct()
+				.collect(Collectors.toList());
+
+		Map<String, String> campaignTitleMap = campaignRepository.findAllById(campaignIds).stream()
+				.collect(Collectors.toMap(Campaign::getId, Campaign::getTitle, (a, b) -> a));
+
+		return donations.stream()
+				.map(d -> new LiveDonationResponse(
+						d.getId().toString(),
+						d.getDonorFullName(),
+						campaignTitleMap.getOrDefault(d.getCampaignId(), ""),
+						d.getAmount(),
+						d.getCreatedAt()))
+				.collect(Collectors.toList());
 	}
 
 	private String generatePaymentCode() {

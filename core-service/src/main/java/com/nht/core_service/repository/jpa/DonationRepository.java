@@ -16,4 +16,6 @@ public interface DonationRepository extends JpaRepository<Donation, UUID> {
 	Optional<Donation> findByPaymentCode(String paymentCode);
 
 	Long countByCampaignId(String campaignId);
+
+	List<Donation> findTop10ByPaymentStatusOrderByCreatedAtDesc(com.nht.core_service.enums.PaymentStatus paymentStatus);
 }

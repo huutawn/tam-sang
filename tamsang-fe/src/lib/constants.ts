@@ -42,6 +42,10 @@ export const API_ENDPOINTS = {
     STATS: (id: string) => `/core/campaigns/${id}/stats`,
     ACTIVITIES: (id: string) => `/core/campaigns/${id}/activities`,
   },
+  // Donations
+  DONATIONS: {
+    RECENT: "/core/donations/recent",
+  },
   // KYC
   KYC: {
     SUBMIT: "/identity/kyc/submit",

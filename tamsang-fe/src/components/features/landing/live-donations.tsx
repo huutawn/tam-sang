@@ -5,63 +5,69 @@ import { CheckCircle, Users, HeartHandshake, ShieldCheck, Activity } from "lucid
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useLiveDonationFeed } from "@/hooks/use-donations";
+import { LiveDonation } from "@/services/donation.service";
 
-interface DonationItem {
-    id: number;
-    donor: string;
-    campaign: string;
-    amount: string;
-    timeAgo: string;
+function formatAmount(amount: number): string {
+    return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
 }
 
-const MOCK_DONATIONS: DonationItem[] = [
-    { id: 1, donor: "Ẩn danh", campaign: "Nước Sạch Cho Tây Nguyên", amount: "500.000₫", timeAgo: "2 giây trước" },
-    { id: 2, donor: "Nguyễn Thị Hoa", campaign: "Giáo Dục Cho Trẻ Mồ Côi", amount: "1.000.000₫", timeAgo: "15 giây trước" },
-    { id: 3, donor: "Trần Minh Khôi", campaign: "Hỗ Trợ Y Tế Ung Thư", amount: "2.500.000₫", timeAgo: "1 phút trước" },
-    { id: 4, donor: "Lê Thu Hằng", campaign: "Xây Nhà Sau Bão Lũ", amount: "750.000₫", timeAgo: "2 phút trước" },
-    { id: 5, donor: "Phạm Văn Đức", campaign: "Cứu Trợ Miền Trung", amount: "3.000.000₫", timeAgo: "3 phút trước" },
-];
+function formatTimeAgo(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+
+    if (diffSec < 5) return "vừa xong";
+    if (diffSec < 60) return `${diffSec} giây trước`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin} phút trước`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour} giờ trước`;
+    const diffDay = Math.floor(diffHour / 24);
+    return `${diffDay} ngày trước`;
+}
 
 export function LiveDonations() {
-    const [donations, setDonations] = useState<DonationItem[]>(MOCK_DONATIONS);
+    const { initialDonations, isLoading, subscribe } = useLiveDonationFeed();
+    const [donations, setDonations] = useState<LiveDonation[]>([]);
+    const [lastUpdate, setLastUpdate] = useState<string>("đang tải...");
 
-    // Simulate new donations arriving
-    const rotateDonation = useCallback(() => {
+    // Sync initial data from react-query
+    useEffect(() => {
+        if (initialDonations.length > 0) {
+            setDonations(initialDonations.slice(0, 10));
+            setLastUpdate(formatTimeAgo(new Date().toISOString()));
+        }
+    }, [initialDonations]);
+
+    // Handle new donation from WebSocket
+    const handleNewDonation = useCallback((newDonation: LiveDonation) => {
         setDonations((prev) => {
-            const newId = Date.now();
-            const randomDonor = ["Ẩn danh", "Hoàng Anh", "Minh Tâm", "Bảo Ngọc", "Thanh Hà"][Math.floor(Math.random() * 5)];
-            const randomCampaign = [
-                "Nước Sạch Cho Tây Nguyên",
-                "Giáo Dục Trẻ Em Vùng Cao",
-                "Hỗ Trợ Y Tế Cộng Đồng",
-                "Xây Trường Học Mới",
-            ][Math.floor(Math.random() * 4)];
-            const randomAmount = [
-                "100.000₫", "250.000₫", "500.000₫", "1.000.000₫", "2.000.000₫",
-            ][Math.floor(Math.random() * 5)];
-
-            const newDonation: DonationItem = {
-                id: newId,
-                donor: randomDonor,
-                campaign: randomCampaign,
-                amount: randomAmount,
-                timeAgo: "vừa xong",
-            };
-
-            return [newDonation, ...prev.slice(0, 4)];
+            if (prev.some((d) => d.id === newDonation.id)) return prev;
+            return [newDonation, ...prev.slice(0, 9)];
         });
+        setLastUpdate("vừa xong");
     }, []);
 
+    // Subscribe WebSocket callback
     useEffect(() => {
-        const interval = setInterval(rotateDonation, 8000);
+        subscribe(handleNewDonation);
+    }, [subscribe, handleNewDonation]);
+
+    // Update timeAgo display periodically
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setLastUpdate(formatTimeAgo(new Date().toISOString()));
+        }, 30000);
         return () => clearInterval(interval);
-    }, [rotateDonation]);
+    }, []);
 
     return (
         <section className="container px-4 py-16 md:px-6 md:py-24">
             <div className="grid lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
                 {/* Left Column: Total Impact Summary */}
-                <div className="flex flex-col gap-8">
+                 <div className="flex flex-col gap-8">
                     <div>
                         <motion.h2
                             initial={{ opacity: 0, y: 10 }}
@@ -183,46 +189,66 @@ export function LiveDonations() {
                                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
                             </span>
                         </div>
-                        <p className="text-sm text-muted-foreground">Cập nhật 2 giây trước</p>
+                        <p className="text-sm text-muted-foreground">Cập nhật {lastUpdate}</p>
                     </div>
 
                     {/* Feed list */}
                     <div className="space-y-3">
                         <AnimatePresence mode="popLayout">
-                            {donations.map((d) => (
-                                <motion.div
-                                    key={d.id}
-                                    layout
-                                    initial={{ opacity: 0, x: -30, scale: 0.95 }}
-                                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                                    exit={{ opacity: 0, x: 30, scale: 0.95 }}
-                                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                                    className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md transition-shadow"
+                            {isLoading ? (
+                                <motion.p
+                                    key="loading"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="text-center text-muted-foreground py-8"
                                 >
-                                    {/* Avatar */}
-                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-200 to-emerald-400 text-emerald-800 text-sm font-bold">
-                                        {d.donor.charAt(0)}
-                                    </div>
+                                    Đang tải...
+                                </motion.p>
+                            ) : donations.length === 0 ? (
+                                <motion.p
+                                    key="empty"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="text-center text-muted-foreground py-8"
+                                >
+                                    Chưa có quyên góp nào
+                                </motion.p>
+                            ) : (
+                                donations.map((d) => (
+                                    <motion.div
+                                        key={d.id}
+                                        layout
+                                        initial={{ opacity: 0, x: -30, scale: 0.95 }}
+                                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                                        exit={{ opacity: 0, x: 30, scale: 0.95 }}
+                                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                                        className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md transition-shadow"
+                                    >
+                                        {/* Avatar */}
+                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-200 to-emerald-400 text-emerald-800 text-sm font-bold">
+                                            {d.donorFullName.charAt(0)}
+                                        </div>
 
-                                    {/* Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-foreground text-sm">{d.donor}</p>
-                                        <p className="text-xs text-muted-foreground truncate">
-                                            đã quyên góp cho{" "}
-                                            <span className="font-medium text-foreground">{d.campaign}</span>
-                                        </p>
-                                        <p className="text-xs text-emerald-600 mt-0.5">{d.timeAgo}</p>
-                                    </div>
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-foreground text-sm">{d.donorFullName}</p>
+                                            <p className="text-xs text-muted-foreground truncate">
+                                                đã quyên góp cho{" "}
+                                                <span className="font-medium text-foreground">{d.campaignTitle}</span>
+                                            </p>
+                                            <p className="text-xs text-emerald-600 mt-0.5">{formatTimeAgo(d.createdAt)}</p>
+                                        </div>
 
-                                    {/* Amount */}
-                                    <div className="text-right shrink-0">
-                                        <span className="text-lg font-bold text-emerald-600">{d.amount}</span>
-                                    </div>
+                                        {/* Amount */}
+                                        <div className="text-right shrink-0">
+                                            <span className="text-lg font-bold text-emerald-600">{formatAmount(d.amount)}</span>
+                                        </div>
 
-                                    {/* Border accent */}
-                                    <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-gradient-to-b from-emerald-400 to-emerald-600 hidden sm:block" />
-                                </motion.div>
-                            ))}
+                                        {/* Border accent */}
+                                        <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-gradient-to-b from-emerald-400 to-emerald-600 hidden sm:block" />
+                                    </motion.div>
+                                ))
+                            )}
                         </AnimatePresence>
                     </div>
 

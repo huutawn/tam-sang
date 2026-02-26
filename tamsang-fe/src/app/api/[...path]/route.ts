@@ -11,6 +11,8 @@ const PUBLIC_ENDPOINTS = [
   "/campaigns/public",
   "/statistics/impact",
   "/statistics/global",
+  "/core/donations/recent",
+  "/core/campaigns",
 ];
 
 /**

@@ -1,15 +1,40 @@
+# ============================================
+# Stage 1: Build fat JAR
+# ============================================
+FROM eclipse-temurin:21-jdk-alpine AS builder
+
+RUN apk add --no-cache maven
+
+WORKDIR /build
+
+# Copy pom first for dependency caching
+COPY pom.xml ./
+RUN mvn dependency:resolve -DskipTests -q
+
+# Copy source code and build
+COPY src ./src
+RUN mvn package -DskipTests -q
+
+# Extract layered JAR for optimized image
+RUN java -Djarmode=layertools -jar target/*.jar extract --destination extracted
+
+# ============================================
+# Stage 2: Optimized runtime image
+# ============================================
 FROM eclipse-temurin:21-jre-alpine
 
-# Create non-root user
 RUN addgroup -g 1000 appuser && adduser -D -u 1000 -G appuser appuser
 
 WORKDIR /app
 
-# Copy pre-built jar from host directly into the runtime image
-COPY target/*.jar app.jar
+# Copy layers individually for better Docker caching
+COPY --from=builder /build/extracted/dependencies/ ./
+COPY --from=builder /build/extracted/spring-boot-loader/ ./
+COPY --from=builder /build/extracted/snapshot-dependencies/ ./
+COPY --from=builder /build/extracted/application/ ./
 
-# Copy config files (needed at runtime for native classpath resources)
-COPY src/main/resources/ ./config-resources/
+# Copy config files (needed at runtime for classpath resources)
+COPY --from=builder /build/src/main/resources/ ./config-resources/
 
 RUN chown -R appuser:appuser /app
 USER appuser
@@ -23,4 +48,4 @@ ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \
   "-XX:MaxRAMPercentage=75.0", \
   "-Djava.security.egd=file:/dev/./urandom", \
-  "-jar", "app.jar"]
+  "org.springframework.boot.loader.launch.JarLauncher"]
