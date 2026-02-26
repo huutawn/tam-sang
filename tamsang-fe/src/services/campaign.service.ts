@@ -9,7 +9,7 @@ export interface Campaign {
   currentAmount: number;
   imageUrl: string;
   deadline: string;
-  section?: string; // For Bento Grid layout handling if needed
+  section?: string;
 }
 
 export interface ImpactStats {
@@ -43,6 +43,30 @@ export interface PagedCampaignsResponse {
   data: CampaignPageItem[];
 }
 
+export interface CampaignDetailResponse {
+  id: string;
+  title: string;
+  content: string;
+  targetAmount: number;
+  currentAmount: number;
+  walletBalance: number;
+  images: string[];
+  status: string;
+  startDate: string | null;
+  endDate: string | null;
+  ownerId: string;
+  hasUsedQuickWithdrawal: boolean;
+  likeCount: number;
+  viewCount: number;
+  commentCount: number;
+}
+
+interface ApiResponse<T> {
+  code: number;
+  message: string;
+  result: T;
+}
+
 export const CampaignService = {
   /**
    * Lấy thống kê tổng quan (Public endpoint)
@@ -65,9 +89,11 @@ export const CampaignService = {
   /**
    * Lấy chi tiết một chiến dịch (Public endpoint)
    */
-  getCampaignById: async (id: string): Promise<Campaign> => {
-    const response = await apiClient.get<Campaign>(API_ENDPOINTS.CAMPAIGNS.DETAIL(id));
-    return response.data;
+  getCampaignById: async (id: string): Promise<CampaignDetailResponse> => {
+    const response = await apiClient.get<ApiResponse<CampaignDetailResponse>>(
+      API_ENDPOINTS.CAMPAIGNS.DETAIL(id)
+    );
+    return response.data.result;
   },
 
   /**
@@ -91,11 +117,10 @@ export const CampaignService = {
   /**
    * Lấy danh sách chiến dịch phân trang (Public endpoint)
    */
-  getPagedCampaigns: async (page: number = 1, size: number = 20): Promise<PagedCampaignsResponse> => {
+  getPagedCampaigns: async (page: number = 1, size: number = 18): Promise<PagedCampaignsResponse> => {
     const response = await apiClient.get<PagedCampaignsResponse>(API_ENDPOINTS.CAMPAIGNS.LIST, {
       params: { page, size },
     });
     return response.data;
   },
 };
-

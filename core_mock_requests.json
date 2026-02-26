@@ -1,0 +1,331 @@
+{
+  "POST /campaigns (CreateCampaignRequest)": [
+    {
+      "title": "Chiến dịch xây cầu yêu thương số 1",
+      "content": "Cùng chung tay xây dựng cây cầu kiên cố cho bà con qua lại an toàn, dự án số 1.",
+      "targetAmount": 60000000,
+      "images": [
+        "https://example.com/images/camp_1_1.jpg",
+        "https://example.com/images/camp_1_2.jpg"
+      ],
+      "startDate": "2026-02-27T01:13:59.627Z",
+      "endDate": "2026-03-29T01:13:59.628Z"
+    },
+    {
+      "title": "Chiến dịch xây cầu yêu thương số 2",
+      "content": "Cùng chung tay xây dựng cây cầu kiên cố cho bà con qua lại an toàn, dự án số 2.",
+      "targetAmount": 70000000,
+      "images": [
+        "https://example.com/images/camp_2_1.jpg",
+        "https://example.com/images/camp_2_2.jpg"
+      ],
+      "startDate": "2026-02-28T01:13:59.628Z",
+      "endDate": "2026-03-30T01:13:59.628Z"
+    },
+    {
+      "title": "Chiến dịch xây cầu yêu thương số 3",
+      "content": "Cùng chung tay xây dựng cây cầu kiên cố cho bà con qua lại an toàn, dự án số 3.",
+      "targetAmount": 80000000,
+      "images": [
+        "https://example.com/images/camp_3_1.jpg",
+        "https://example.com/images/camp_3_2.jpg"
+      ],
+      "startDate": "2026-03-01T01:13:59.628Z",
+      "endDate": "2026-03-31T01:13:59.628Z"
+    },
+    {
+      "title": "Chiến dịch xây cầu yêu thương số 4",
+      "content": "Cùng chung tay xây dựng cây cầu kiên cố cho bà con qua lại an toàn, dự án số 4.",
+      "targetAmount": 90000000,
+      "images": [
+        "https://example.com/images/camp_4_1.jpg",
+        "https://example.com/images/camp_4_2.jpg"
+      ],
+      "startDate": "2026-03-02T01:13:59.628Z",
+      "endDate": "2026-04-01T01:13:59.628Z"
+    },
+    {
+      "title": "Chiến dịch xây cầu yêu thương số 5",
+      "content": "Cùng chung tay xây dựng cây cầu kiên cố cho bà con qua lại an toàn, dự án số 5.",
+      "targetAmount": 100000000,
+      "images": [
+        "https://example.com/images/camp_5_1.jpg",
+        "https://example.com/images/camp_5_2.jpg"
+      ],
+      "startDate": "2026-03-03T01:13:59.628Z",
+      "endDate": "2026-04-02T01:13:59.628Z"
+    }
+  ],
+  "POST /donations/init (InitDonationRequest)": [
+    {
+      "campaignId": "camp_1",
+      "amount": 100000,
+      "donorName": "Trần Thị B1",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 1"
+    },
+    {
+      "campaignId": "camp_2",
+      "amount": 200000,
+      "donorName": "Nguyễn Văn A2",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 2"
+    },
+    {
+      "campaignId": "camp_3",
+      "amount": 300000,
+      "donorName": "Trần Thị B3",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 3"
+    },
+    {
+      "campaignId": "camp_4",
+      "amount": 400000,
+      "donorName": "Nguyễn Văn A4",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 4"
+    },
+    {
+      "campaignId": "camp_5",
+      "amount": 500000,
+      "donorName": "Trần Thị B5",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 5"
+    }
+  ],
+  "POST /donations/complete (DonationCompleteRequest)": [
+    {
+      "donationId": "don_1001",
+      "campaignId": "camp_1",
+      "amount": 100000,
+      "donorName": "Trần Thị B1",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 1",
+      "transactionHash": "0xabc123def4561",
+      "blockIndex": 12346
+    },
+    {
+      "donationId": "don_1002",
+      "campaignId": "camp_2",
+      "amount": 200000,
+      "donorName": "Nguyễn Văn A2",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 2",
+      "transactionHash": "0xabc123def4562",
+      "blockIndex": 12347
+    },
+    {
+      "donationId": "don_1003",
+      "campaignId": "camp_3",
+      "amount": 300000,
+      "donorName": "Trần Thị B3",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 3",
+      "transactionHash": "0xabc123def4563",
+      "blockIndex": 12348
+    },
+    {
+      "donationId": "don_1004",
+      "campaignId": "camp_4",
+      "amount": 400000,
+      "donorName": "Nguyễn Văn A4",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 4",
+      "transactionHash": "0xabc123def4564",
+      "blockIndex": 12349
+    },
+    {
+      "donationId": "don_1005",
+      "campaignId": "camp_5",
+      "amount": 500000,
+      "donorName": "Trần Thị B5",
+      "message": "Ủng hộ chiến dịch phần công đức nhỏ số 5",
+      "transactionHash": "0xabc123def4565",
+      "blockIndex": 12350
+    }
+  ],
+  "POST /webhook/payment (PaymentWebhookRequest)": [
+    {
+      "id": "txn_1",
+      "gateway": "VNPAY",
+      "transactionDate": "2026-02-26T01:13:59.628Z",
+      "accountNumber": "0123456781",
+      "code": "MB_001",
+      "content": "CHUYEN KHOAN TAMSANG 1",
+      "transferType": "IN",
+      "transferAmount": 100000,
+      "accumulated": "10100000",
+      "subAccount": "000",
+      "referenceCode": "REF1",
+      "description": "Thanh toán thành công"
+    },
+    {
+      "id": "txn_2",
+      "gateway": "VNPAY",
+      "transactionDate": "2026-02-26T01:13:59.628Z",
+      "accountNumber": "0123456782",
+      "code": "MB_002",
+      "content": "CHUYEN KHOAN TAMSANG 2",
+      "transferType": "IN",
+      "transferAmount": 200000,
+      "accumulated": "10200000",
+      "subAccount": "000",
+      "referenceCode": "REF2",
+      "description": "Thanh toán thành công"
+    },
+    {
+      "id": "txn_3",
+      "gateway": "VNPAY",
+      "transactionDate": "2026-02-26T01:13:59.628Z",
+      "accountNumber": "0123456783",
+      "code": "MB_003",
+      "content": "CHUYEN KHOAN TAMSANG 3",
+      "transferType": "IN",
+      "transferAmount": 300000,
+      "accumulated": "10300000",
+      "subAccount": "000",
+      "referenceCode": "REF3",
+      "description": "Thanh toán thành công"
+    },
+    {
+      "id": "txn_4",
+      "gateway": "VNPAY",
+      "transactionDate": "2026-02-26T01:13:59.628Z",
+      "accountNumber": "0123456784",
+      "code": "MB_004",
+      "content": "CHUYEN KHOAN TAMSANG 4",
+      "transferType": "IN",
+      "transferAmount": 400000,
+      "accumulated": "10400000",
+      "subAccount": "000",
+      "referenceCode": "REF4",
+      "description": "Thanh toán thành công"
+    },
+    {
+      "id": "txn_5",
+      "gateway": "VNPAY",
+      "transactionDate": "2026-02-26T01:13:59.628Z",
+      "accountNumber": "0123456785",
+      "code": "MB_005",
+      "content": "CHUYEN KHOAN TAMSANG 5",
+      "transferType": "IN",
+      "transferAmount": 500000,
+      "accumulated": "10500000",
+      "subAccount": "000",
+      "referenceCode": "REF5",
+      "description": "Thanh toán thành công"
+    }
+  ],
+  "POST /proofs/internal/hybrid-callback (HybridReasoningCallbackRequest)": [
+    {
+      "proof_id": "proof_1",
+      "trust_score": 86,
+      "is_valid": true,
+      "analysis_summary": "Hình ảnh rõ nét, phù hợp chứng từ.",
+      "trust_hash": "hash_trust_1",
+      "gemini_total_amount": 1000000,
+      "gemini_items_count": 2,
+      "gemini_price_warnings": [],
+      "clip_scene_score": 0.95,
+      "duplicate_detected": false,
+      "timestamp": "2026-02-26T01:13:59.628Z"
+    },
+    {
+      "proof_id": "proof_2",
+      "trust_score": 87,
+      "is_valid": false,
+      "analysis_summary": "Hình ảnh rõ nét, phù hợp chứng từ.",
+      "trust_hash": "hash_trust_2",
+      "gemini_total_amount": 2000000,
+      "gemini_items_count": 3,
+      "gemini_price_warnings": [],
+      "clip_scene_score": 0.95,
+      "duplicate_detected": false,
+      "timestamp": "2026-02-26T01:13:59.628Z"
+    },
+    {
+      "proof_id": "proof_3",
+      "trust_score": 88,
+      "is_valid": true,
+      "analysis_summary": "Hình ảnh rõ nét, phù hợp chứng từ.",
+      "trust_hash": "hash_trust_3",
+      "gemini_total_amount": 3000000,
+      "gemini_items_count": 4,
+      "gemini_price_warnings": [],
+      "clip_scene_score": 0.95,
+      "duplicate_detected": false,
+      "timestamp": "2026-02-26T01:13:59.628Z"
+    },
+    {
+      "proof_id": "proof_4",
+      "trust_score": 89,
+      "is_valid": false,
+      "analysis_summary": "Hình ảnh rõ nét, phù hợp chứng từ.",
+      "trust_hash": "hash_trust_4",
+      "gemini_total_amount": 4000000,
+      "gemini_items_count": 5,
+      "gemini_price_warnings": [],
+      "clip_scene_score": 0.95,
+      "duplicate_detected": false,
+      "timestamp": "2026-02-26T01:13:59.628Z"
+    },
+    {
+      "proof_id": "proof_5",
+      "trust_score": 90,
+      "is_valid": true,
+      "analysis_summary": "Hình ảnh rõ nét, phù hợp chứng từ.",
+      "trust_hash": "hash_trust_5",
+      "gemini_total_amount": 5000000,
+      "gemini_items_count": 6,
+      "gemini_price_warnings": [],
+      "clip_scene_score": 0.95,
+      "duplicate_detected": false,
+      "timestamp": "2026-02-26T01:13:59.628Z"
+    }
+  ],
+  "POST /withdrawals (CreateWithdrawalRequest)": [
+    {
+      "campaignId": "camp_1",
+      "amount": 2000000,
+      "reason": "Rút tiền thanh toán đợt 1 cho nhà thầu xây dựng",
+      "type": "STANDARD",
+      "quick": false
+    },
+    {
+      "campaignId": "camp_2",
+      "amount": 4000000,
+      "reason": "Rút tiền thanh toán đợt 2 cho nhà thầu xây dựng",
+      "type": "STANDARD",
+      "quick": false
+    },
+    {
+      "campaignId": "camp_3",
+      "amount": 6000000,
+      "reason": "Rút tiền thanh toán đợt 3 cho nhà thầu xây dựng",
+      "type": "STANDARD",
+      "quick": true
+    },
+    {
+      "campaignId": "camp_4",
+      "amount": 8000000,
+      "reason": "Rút tiền thanh toán đợt 4 cho nhà thầu xây dựng",
+      "type": "STANDARD",
+      "quick": false
+    },
+    {
+      "campaignId": "camp_5",
+      "amount": 10000000,
+      "reason": "Rút tiền thanh toán đợt 5 cho nhà thầu xây dựng",
+      "type": "STANDARD",
+      "quick": false
+    }
+  ],
+  "PUT /withdrawals/{id}/reject (RejectWithdrawalRequest)": [
+    {
+      "reason": "Chứng từ không hợp lệ lần 1, vui lòng chụp rõ nét hơn."
+    },
+    {
+      "reason": "Chứng từ không hợp lệ lần 2, vui lòng chụp rõ nét hơn."
+    },
+    {
+      "reason": "Chứng từ không hợp lệ lần 3, vui lòng chụp rõ nét hơn."
+    },
+    {
+      "reason": "Chứng từ không hợp lệ lần 4, vui lòng chụp rõ nét hơn."
+    },
+    {
+      "reason": "Chứng từ không hợp lệ lần 5, vui lòng chụp rõ nét hơn."
+    }
+  ]
+}

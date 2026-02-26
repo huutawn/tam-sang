@@ -6,6 +6,13 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface RegisterData {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+}
+
 export interface AuthResponse {
   success: boolean;
   user?: UserPayload;
@@ -18,6 +25,11 @@ export const AuthService = {
     return response.data;
   },
 
+  register: async (data: RegisterData): Promise<AuthResponse> => {
+    const response = await apiClient.post<AuthResponse>('/auth/register', data);
+    return response.data;
+  },
+
   logout: async (): Promise<void> => {
     await apiClient.post('/auth/logout');
   },
@@ -25,6 +37,4 @@ export const AuthService = {
   refresh: async (): Promise<void> => {
     await apiClient.post('/auth/refresh');
   },
-  
-  // register: async (data: RegisterData) => { ... }
 };

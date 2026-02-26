@@ -60,7 +60,7 @@ export function Header() {
                             key={item.name}
                             href={item.href}
                             className={cn(
-                                "text-sm font-medium transition-colors hover:text-emerald-600",
+                                "text-lg font-medium transition-colors hover:text-emerald-600",
                                 pathname === item.href
                                     ? "text-emerald-600"
                                     : "text-muted-foreground"
@@ -211,13 +211,13 @@ export function Header() {
                                 </>
                             ) : (
                                 <div className="flex gap-2 pt-2">
-                                    <Link href="/login" className="flex-1">
-                                        <Button variant="outline" className="w-full">
+                                    <Link href="/login" className="flex-1 cursor-pointer">
+                                        <Button variant="outline" className="w-full text-lg cursor-pointer hover:bg-emerald-600 hover:text-green-600">
                                             Đăng nhập
                                         </Button>
                                     </Link>
-                                    <Link href="/register" className="flex-1">
-                                        <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
+                                    <Link href="/register" className="flex-1 cursor-pointer">
+                                        <Button className="w-full text-lg cursor-pointer bg-emerald-600 hover:bg-emerald-700 hover:text-green-600">
                                             Đăng ký
                                         </Button>
                                     </Link>
