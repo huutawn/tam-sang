@@ -13,8 +13,11 @@ import org.springframework.stereotype.Service;
 import com.nht.identity.constant.PredefindRole;
 import com.nht.identity.dto.request.UserCreationRequest;
 import com.nht.identity.dto.request.UserUpdateRequest;
+import com.nht.identity.dto.response.KycProfileResponse;
 import com.nht.identity.dto.response.UserExistResponse;
 import com.nht.identity.dto.response.UserResponse;
+import com.nht.identity.dto.response.UserWithKycResponse;
+import com.nht.identity.entity.KycProfile;
 import com.nht.identity.entity.KycStatus;
 import com.nht.identity.entity.Role;
 import com.nht.identity.entity.User;
@@ -63,6 +66,47 @@ public class UserService {
         User user = userRepository.findByEmail(name).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         return userMapper.toUserResponse(user);
+    }
+
+    public UserWithKycResponse getMyInfoWithKyc() {
+        var context = SecurityContextHolder.getContext();
+        String email = context.getAuthentication().getName();
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        KycProfileResponse kycProfileResponse = null;
+        Optional<KycProfile> kycProfile = kycProfileRepository.findByUserId(user.getId());
+
+        if (kycProfile.isPresent()) {
+            KycProfile p = kycProfile.get();
+            kycProfileResponse = KycProfileResponse.builder()
+                    .kycId(p.getId())
+                    .userId(p.getUserId())
+                    .frontImageUrl(p.getFrontImageUrl())
+                    .backImageUrl(p.getBackImageUrl())
+                    .fullName(p.getFullName())
+                    .dob(p.getDob())
+                    .idNumber(p.getIdNumber())
+                    .idType(p.getIdType())
+                    .address(p.getAddress())
+                    .status(p.getStatus())
+                    .rejectionReason(p.getRejectionReason())
+                    .createdAt(p.getCreatedAt())
+                    .updatedAt(p.getUpdatedAt())
+                    .build();
+        }
+
+        return UserWithKycResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .isBlackList(user.isBlackList())
+                .ICHash(user.getICHash())
+                .KycStatus(user.getKycStatus())
+                .roles(user.getRoles())
+                .kycProfile(kycProfileResponse)
+                .build();
     }
 
     @PreAuthorize("hasRole('ADMIN')")

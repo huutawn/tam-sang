@@ -11,6 +11,7 @@ import com.nht.identity.dto.response.ApiResponse;
 import com.nht.identity.dto.response.KycStatusResponse;
 import com.nht.identity.dto.response.UserExistResponse;
 import com.nht.identity.dto.response.UserResponse;
+import com.nht.identity.dto.response.UserWithKycResponse;
 import com.nht.identity.service.UserService;
 
 import lombok.AccessLevel;
@@ -36,6 +37,12 @@ public class UserController {
     @GetMapping
     public ApiResponse<List<UserResponse>> getAll() {
         List<UserResponse> result = userService.getUsers();
+        return new ApiResponse<>(1000, null, result);
+    }
+
+    @GetMapping("/me/kyc")
+    public ApiResponse<UserWithKycResponse> getMyInfoWithKyc() {
+        UserWithKycResponse result = userService.getMyInfoWithKyc();
         return new ApiResponse<>(1000, null, result);
     }
 

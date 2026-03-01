@@ -1,4 +1,5 @@
 import apiClient from "./api-client";
+import { API_ENDPOINTS } from "@/lib/constants";
 
 export type UserRole = "ADMIN" | "ORGANIZER" | "DONOR";
 
@@ -12,6 +13,37 @@ export interface UserProfile {
   isKYCVerified: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface KycProfile {
+  kycId: string;
+  frontImageUrl: string;
+  backImageUrl: string;
+  fullName: string;
+  dob: string;
+  idNumber: string;
+  idType: string;
+  address: string;
+  status: string;
+  rejectionReason: string;
+}
+
+export interface UserWithKycResponse {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isBlackList: boolean;
+  ICHash: string;
+  KycStatus: string;
+  roles: Array<{ name: string }>;
+  kycProfile: KycProfile | null;
+}
+
+interface ApiResponse<T> {
+  code: number;
+  message: string;
+  result: T;
 }
 
 export interface UpdateProfileRequest {
@@ -30,8 +62,18 @@ export const UserService = {
    * Lấy thông tin profile của user hiện tại
    */
   getProfile: async (): Promise<UserProfile> => {
-    const response = await apiClient.get<UserProfile>("/users/me");
+    const response = await apiClient.get<UserProfile>(API_ENDPOINTS.USERS.ME);
     return response.data;
+  },
+
+  /**
+   * Lấy thông tin profile kèm KYC của user hiện tại
+   */
+  getMyProfileWithKyc: async (): Promise<UserWithKycResponse> => {
+    const response = await apiClient.get<ApiResponse<UserWithKycResponse>>(
+      API_ENDPOINTS.USERS.ME_KYC
+    );
+    return response.data.result;
   },
 
   /**
@@ -39,7 +81,7 @@ export const UserService = {
    * @param data - Dữ liệu cần cập nhật
    */
   updateProfile: async (data: UpdateProfileRequest): Promise<UserProfile> => {
-    const response = await apiClient.patch<UserProfile>("/users/me", data);
+    const response = await apiClient.patch<UserProfile>(API_ENDPOINTS.USERS.ME, data);
     return response.data;
   },
 
@@ -48,7 +90,7 @@ export const UserService = {
    * @param data - Mật khẩu cũ và mới
    */
   changePassword: async (data: ChangePasswordRequest): Promise<void> => {
-    await apiClient.post("/users/me/change-password", data);
+    await apiClient.post(API_ENDPOINTS.USERS.CHANGE_PASSWORD, data);
   },
 
   /**
@@ -71,7 +113,7 @@ export const UserService = {
    * @param userId - ID của user cần xem
    */
   getPublicProfile: async (userId: string): Promise<Partial<UserProfile>> => {
-    const response = await apiClient.get<Partial<UserProfile>>(`/users/${userId}/public`);
+    const response = await apiClient.get<Partial<UserProfile>>(API_ENDPOINTS.USERS.PUBLIC(userId));
     return response.data;
   },
 };

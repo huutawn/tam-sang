@@ -234,6 +234,18 @@ public class CampaignServiceImpl implements CampaignService {
 	}
 
 	@Override
+	public PageResponse<CampaignPageResponse> getMyCampaigns(int size, int page) {
+		String userId = JwtUtils.getUserIdFromToken();
+		Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+		Pageable pageable = PageRequest.of(page - 1, size, sort);
+		Page<Campaign> campaigns = campaignRepository.findByOwnerId(userId, pageable);
+		List<CampaignPageResponse> campaignResponses = campaigns.getContent().stream()
+				.map(this::toCampaignResponse).toList();
+		return new PageResponse<>(page, campaigns.getTotalPages(), pageable.getPageSize(),
+				campaigns.getTotalElements(), campaignResponses);
+	}
+
+	@Override
 	@Transactional
 	public void closeCampaign(String id) {
 		Campaign campaign = campaignRepository.findById(id)

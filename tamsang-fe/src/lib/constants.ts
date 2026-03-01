@@ -26,6 +26,7 @@ export const API_ENDPOINTS = {
   // Users
   USERS: {
     ME: "/identity/users/me",
+    ME_KYC: "/identity/users/me/kyc",
     PROFILE: (id: string) => `/identity/users/${id}`,
     PUBLIC: (id: string) => `/identity/users/${id}/public`,
     CHANGE_PASSWORD: "/identity/users/me/change-password",
@@ -50,6 +51,7 @@ export const API_ENDPOINTS = {
   KYC: {
     SUBMIT: "/identity/kyc/submit",
     STATUS: "/identity/kyc/status",
+    VALID: (userId: string) => `/identity/kyc/valid/${userId}`,
   },
   // Withdrawals
   WITHDRAWALS: {

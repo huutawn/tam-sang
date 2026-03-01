@@ -61,6 +61,15 @@ export interface CampaignDetailResponse {
   commentCount: number;
 }
 
+export interface CreateCampaignRequest {
+  title: string;
+  content?: string;
+  targetAmount: number;
+  images?: string[];
+  startDate?: string;
+  endDate?: string;
+}
+
 interface ApiResponse<T> {
   code: number;
   message: string;
@@ -99,8 +108,11 @@ export const CampaignService = {
   /**
    * Lấy danh sách chiến dịch của tôi (Cần auth)
    */
-  getMyCampaigns: async (): Promise<Campaign[]> => {
-    const response = await apiClient.get<Campaign[]>(API_ENDPOINTS.CAMPAIGNS.MY_CAMPAIGNS);
+  getMyCampaigns: async (page: number = 1, size: number = 10): Promise<PagedCampaignsResponse> => {
+    const response = await apiClient.get<PagedCampaignsResponse>(
+      API_ENDPOINTS.CAMPAIGNS.MY_CAMPAIGNS,
+      { params: { page, size } }
+    );
     return response.data;
   },
 
@@ -121,6 +133,17 @@ export const CampaignService = {
     const response = await apiClient.get<PagedCampaignsResponse>(API_ENDPOINTS.CAMPAIGNS.LIST, {
       params: { page, size },
     });
+    return response.data;
+  },
+
+  /**
+   * Tạo chiến dịch mới (Cần auth + KYC)
+   */
+  createCampaign: async (data: CreateCampaignRequest): Promise<ApiResponse<unknown>> => {
+    const response = await apiClient.post<ApiResponse<unknown>>(
+      API_ENDPOINTS.CAMPAIGNS.CREATE,
+      data
+    );
     return response.data;
   },
 };

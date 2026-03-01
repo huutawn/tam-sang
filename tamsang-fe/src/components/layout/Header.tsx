@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, User, LogOut, ChevronDown, Heart, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,12 @@ export function Header() {
     const { user, isAuthenticated } = useAuthStore();
     const logoutMutation = useLogout();
 
+    // Đóng menu khi chuyển trang
+    useEffect(() => {
+        setMobileMenuOpen(false);
+        setUserMenuOpen(false);
+    }, [pathname]);
+
     const handleLogout = () => {
         logoutMutation.mutate();
         setUserMenuOpen(false);
@@ -36,7 +42,7 @@ export function Header() {
             case "ORGANIZER":
                 return "/campaign-manager";
             default:
-                return "/profile";
+                return "/dashboard/thong-tin-ca-nhan";
         }
     };
 
@@ -96,15 +102,13 @@ export function Header() {
                                     >
                                         <Link
                                             href={getDashboardLink()}
-                                            onClick={() => setUserMenuOpen(false)}
                                             className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
                                         >
                                             <LayoutDashboard className="h-4 w-4" />
                                             Dashboard
                                         </Link>
                                         <Link
-                                            href="/profile"
-                                            onClick={() => setUserMenuOpen(false)}
+                                            href="/dashboard/thong-tin-ca-nhan"
                                             className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
                                         >
                                             <User className="h-4 w-4" />
@@ -114,7 +118,7 @@ export function Header() {
                                         <button
                                             onClick={handleLogout}
                                             disabled={logoutMutation.isPending}
-                                            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
+                                            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10 cursor-pointer"
                                         >
                                             <LogOut className="h-4 w-4" />
                                             Đăng xuất
@@ -168,7 +172,6 @@ export function Header() {
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    onClick={() => setMobileMenuOpen(false)}
                                     className={cn(
                                         "block rounded-lg px-3 py-2 text-base font-medium transition-colors",
                                         pathname === item.href
@@ -184,26 +187,21 @@ export function Header() {
                                 <>
                                     <Link
                                         href={getDashboardLink()}
-                                        onClick={() => setMobileMenuOpen(false)}
                                         className="flex items-center gap-2 rounded-lg px-3 py-2 text-base font-medium text-muted-foreground hover:bg-muted"
                                     >
                                         <LayoutDashboard className="h-5 w-5" />
                                         Dashboard
                                     </Link>
                                     <Link
-                                        href="/profile"
-                                        onClick={() => setMobileMenuOpen(false)}
+                                        href="/dashboard/thong-tin-ca-nhan"
                                         className="flex items-center gap-2 rounded-lg px-3 py-2 text-base font-medium text-muted-foreground hover:bg-muted"
                                     >
                                         <User className="h-5 w-5" />
                                         Hồ sơ
                                     </Link>
                                     <button
-                                        onClick={() => {
-                                            handleLogout();
-                                            setMobileMenuOpen(false);
-                                        }}
-                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-base font-medium text-destructive hover:bg-destructive/10"
+                                        onClick={() => handleLogout()}
+                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-base font-medium text-destructive hover:bg-destructive/10 cursor-pointer"
                                     >
                                         <LogOut className="h-5 w-5" />
                                         Đăng xuất

@@ -30,10 +30,10 @@ async function handleRequest(
   pathSegments: string[]
 ) {
   try {
-    // Xây dựng đường dẫn đầy đủ (GIỮ NGUYÊN /api prefix)
+    // Xây dựng đường dẫn đầy đủ (KHÔNG BAO GỒM /api prefix vì Gateway tự định tuyến theo service name)
     const path = pathSegments.join("/");
     const searchParams = request.nextUrl.searchParams.toString();
-    const backendPath = `${BACKEND_URL}/api/${path}${searchParams ? `?${searchParams}` : ""}`;
+    const backendPath = `${BACKEND_URL}/${path}${searchParams ? `?${searchParams}` : ""}`;
 
     // Kiểm tra xem endpoint có cần token không
     const isPublicEndpoint = PUBLIC_ENDPOINTS.some((endpoint) =>

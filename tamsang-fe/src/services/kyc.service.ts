@@ -1,13 +1,8 @@
 import apiClient from "./api-client";
+import { API_ENDPOINTS } from "@/lib/constants";
 
 // KYC Status enum
 export type KYCStatus = "PENDING" | "PROCESSING" | "VERIFIED" | "REJECTED";
-
-export interface KYCRequest {
-  frontImageUrl: string;
-  backImageUrl: string;
-  selfieImageUrl?: string;
-}
 
 export interface KYCResult {
   id: string;
@@ -23,51 +18,64 @@ export interface KYCResult {
   updatedAt: string;
 }
 
+export interface KycSubmitResponse {
+  kycId: string;
+  userId: string;
+  status: KYCStatus;
+  createdAt: string;
+}
+
+export interface ValidKycResponse {
+  userId: string;
+  isValid: boolean;
+  message: string;
+  status: string;
+  isError: boolean;
+}
+
+interface ApiResponse<T> {
+  code: number;
+  message: string;
+  result: T;
+}
+
 export const KYCService = {
   /**
-   * Gửi yêu cầu xác minh eKYC
-   * @param data - Dữ liệu KYC bao gồm các URL ảnh
+   * Gửi yêu cầu xác minh eKYC (upload ảnh CCCD)
+   * @param frontImage - File ảnh mặt trước CCCD
+   * @param backImage - File ảnh mặt sau CCCD
    */
-  submitKYC: async (data: KYCRequest): Promise<KYCResult> => {
-    const response = await apiClient.post<KYCResult>("/kyc/submit", data);
-    return response.data;
+  submitKYC: async (frontImage: File, backImage: File): Promise<KycSubmitResponse> => {
+    const formData = new FormData();
+    formData.append("frontImage", frontImage);
+    formData.append("backImage", backImage);
+
+    const response = await apiClient.post<ApiResponse<KycSubmitResponse>>(
+      API_ENDPOINTS.KYC.SUBMIT,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+    return response.data.result;
   },
 
   /**
    * Lấy trạng thái KYC hiện tại của user
    */
   getKYCStatus: async (): Promise<KYCResult | null> => {
-    const response = await apiClient.get<KYCResult>("/kyc/status");
+    const response = await apiClient.get<KYCResult>(API_ENDPOINTS.KYC.STATUS);
     return response.data;
   },
 
   /**
-   * Upload ảnh CMND/CCCD mặt trước
-   * @param file - File ảnh để upload
+   * Kiểm tra KYC có hợp lệ không
+   * @param userId - ID của user cần kiểm tra
    */
-  uploadFrontImage: async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("type", "kyc-front");
-
-    const response = await apiClient.post<{ url: string }>("/files/upload", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return response.data.url;
-  },
-
-  /**
-   * Upload ảnh CMND/CCCD mặt sau
-   * @param file - File ảnh để upload
-   */
-  uploadBackImage: async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("type", "kyc-back");
-
-    const response = await apiClient.post<{ url: string }>("/files/upload", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return response.data.url;
+  checkKycValid: async (userId: string): Promise<ValidKycResponse> => {
+    const response = await apiClient.get<ApiResponse<ValidKycResponse>>(
+      API_ENDPOINTS.KYC.VALID(userId)
+    );
+    return response.data.result;
   },
 };

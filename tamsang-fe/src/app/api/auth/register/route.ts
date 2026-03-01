@@ -7,15 +7,29 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { fullName, email, phone, password } = body;
 
-    // Gọi BE: POST /identity/users (theo endpoint.md)
+    let firstName = '';
+    let lastName = '';
+    
+    if (fullName) {
+      const parts = fullName.trim().split(' ');
+      if (parts.length > 1) {
+        firstName = parts.slice(0, -1).join(' ');
+        lastName = parts[parts.length - 1];
+      } else {
+        firstName = fullName;
+        lastName = '';
+      }
+    }
+
+    // Gọi BE: POST /identity/users (theo đúng gateway prefix)
     const backendRes = await fetch(`${BACKEND_URL}/identity/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email,
         password,
-        fullName,
-        phone,
+        firstName,
+        lastName,
       }),
     });
 

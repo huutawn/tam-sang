@@ -37,6 +37,14 @@ public class CampaignController {
 		return ResponseEntity.ok(response);
 	}
 
+	@PreAuthorize("isAuthenticated()")
+	@GetMapping("/me")
+	public ResponseEntity<PageResponse<CampaignPageResponse>> getMyCampaigns(
+			@RequestParam(value = "page", required = false, defaultValue = "1") int page,
+			@RequestParam(value = "size", required = false, defaultValue = "10") int size) {
+		PageResponse<CampaignPageResponse> response = campaignService.getMyCampaigns(size, page);
+		return ResponseEntity.ok(response);
+	}
 
 	@GetMapping("/{id}")
 	public ResponseEntity<ApiResponse<CampaignResponse>> getCampaign(@PathVariable String id) {
