@@ -93,6 +93,7 @@ export function FeaturedCampaigns() {
                         {campaigns.map((c) => (
                             <div key={c.id} className="snap-start">
                                 <CampaignCard
+                                    href={`/campaigns/${c.id}`}
                                     imageUrl={c.images?.[0]}
                                     title={c.title}
                                     description={c.content || ""}

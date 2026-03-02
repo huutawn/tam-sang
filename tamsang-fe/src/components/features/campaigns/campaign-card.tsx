@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { MapPin, CheckCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import Link from "next/link";
 
 interface CampaignCardProps {
     imageUrl?: string;
@@ -13,6 +14,7 @@ interface CampaignCardProps {
     targetAmount: number;
     badge?: string;       // e.g. "Đạt mục tiêu trong 12 ngày"
     isVerified?: boolean;
+    href?: string;
 }
 
 export function CampaignCard({
@@ -24,17 +26,18 @@ export function CampaignCard({
     targetAmount,
     badge,
     isVerified = false,
+    href,
 }: CampaignCardProps) {
     const progress = Math.min((currentAmount / targetAmount) * 100, 100);
 
     const formatVND = (amount: number) =>
         new Intl.NumberFormat("vi-VN").format(amount) + "₫";
 
-    return (
+    const content = (
         <motion.div
             whileHover={{ y: -4 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm hover:shadow-xl transition-shadow duration-300 w-full max-w-sm shrink-0"
+            className={`group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm hover:shadow-xl transition-shadow duration-300 w-full max-w-sm shrink-0 ${href ? "" : "h-full"}`}
         >
             {/* Image */}
             <div className="relative h-52 overflow-hidden bg-muted">
@@ -92,4 +95,10 @@ export function CampaignCard({
             </div>
         </motion.div>
     );
+
+    if (href) {
+        return <Link href={href}>{content}</Link>;
+    }
+
+    return content;
 }
