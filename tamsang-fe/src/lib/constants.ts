@@ -74,6 +74,13 @@ export const API_ENDPOINTS = {
   FILES: {
     UPLOAD: "/files/upload",
   },
+  // Blockchain
+  BLOCKCHAIN: {
+    WALLET_BY_CAMPAIGN: (campaignId: string) => `/blockchain/v1/wallets/campaign/${campaignId}`,
+    AUDIT_HISTORY: (walletId: string) => `/blockchain/v1/audit/history/${walletId}`,
+    AUDIT_BALANCE: (walletId: string) => `/blockchain/v1/audit/balance/${walletId}`,
+    VERIFIED_BALANCE: (walletId: string) => `/blockchain/v1/audit/verified-balance/${walletId}`,
+  },
   // Statistics
   STATISTICS: {
     IMPACT: "/statistics/impact",

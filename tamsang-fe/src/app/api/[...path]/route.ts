@@ -13,6 +13,8 @@ const PUBLIC_ENDPOINTS = [
   "/statistics/global",
   "/core/donations/recent",
   "/core/campaigns",
+  "/blockchain/v1/wallets",
+  "/blockchain/v1/audit",
 ];
 
 /**
