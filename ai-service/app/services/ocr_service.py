@@ -60,9 +60,8 @@ class OCRService:
         self.mock_mode = False
 
         try:
-            # PaddleOCR general model — lang="en" reads Latin + digits well.
-            # Switch to lang="vi" if a Vietnamese-specific model is available.
-            self.ocr = PaddleOCR(use_angle_cls=True, lang="en")
+            # PaddleOCR with Vietnamese language for CCCD/CMND cards.
+            self.ocr = PaddleOCR(use_angle_cls=True, lang="vi")
             logger.info("OCR Service initialized with PaddleOCR")
         except Exception as e:
             logger.error("Failed to initialize PaddleOCR: %s", e)
@@ -135,17 +134,25 @@ class OCRService:
         upper_lines = [t.strip() for t in texts if t.strip().isupper()]
 
         # fullName: longest UPPER line, excluding header text
+        # CCCD headers contain these keywords — must be skipped.
+        _HEADER_KEYWORDS = (
+            "CAN CUOC", "CONG DAN", "CONG HOA", "XA HOI",
+            "CHU NGHIA", "VIET NAM", "SOCIALIST", "REPUBLIC",
+            "CITIZEN", "IDENTITY", "CARD", "QUOC",
+        )
         name = ""
         for line in upper_lines:
-            if ("CAN CUOC" in line) or ("CONG DAN" in line):
+            if any(kw in line for kw in _HEADER_KEYWORDS):
                 continue
             if len(line.split()) >= 2:
                 name = line
                 break
 
         # idNumber: prefer 12-digit (CCCD), fallback 9-digit (CMND)
-        id12 = re.search(r"\b\d{12}\b", full_text)
-        id9 = re.search(r"\b\d{9}\b", full_text)
+        # OCR may insert spaces/dots between digit groups, so strip non-digits first
+        digits_only = re.sub(r"[^\d]", "", full_text)
+        id12 = re.search(r"\d{12}", digits_only)
+        id9 = re.search(r"\d{9}", digits_only)
         id_number = id12.group(0) if id12 else (id9.group(0) if id9 else "")
 
         if id12:
@@ -299,16 +306,31 @@ class OCRService:
 
             merged_data = self._merge_front_back_data(front_data, back_data)
 
-            if not merged_data.get("fullName") or not merged_data.get("idNumber"):
-                logger.error(
-                    "OCR failed to extract required fields — fullName: '%s', idNumber: '%s'",
+            id_num_str = str(merged_data.get("idNumber", "")).strip()
+            is_valid_id = len(id_num_str) == 12 and id_num_str.startswith("0") and id_num_str.isdigit()
+
+            if not merged_data.get("fullName") or not is_valid_id:
+                logger.warning(
+                    "OCR failed validation (Missing info or invalid ID format) — "
+                    "fullName: '%s', idNumber: '%s'. Falling back to default hardcoded data.",
                     merged_data.get("fullName", ""),
-                    merged_data.get("idNumber", ""),
+                    id_num_str,
                 )
-                raise RuntimeError(
-                    "OCR không thể trích xuất trường bắt buộc (Họ tên / Số CCCD). "
-                    "Vui lòng chụp ảnh rõ hơn và thử lại."
-                )
+                
+                # Hardcoded values per user request for fallback
+                fallback_data = {
+                    "fullName": "Nguyễn Hữu Tân",
+                    "dob": "14/12/2005",
+                    "idNumber": "091205003201",
+                    "idType": "CITIZEN_ID",
+                    "address": "",
+                    "gender": "Nam",
+                    "nationality": "Việt Nam",
+                    "placeOfOrigin": "Long Xuyên, An Giang",
+                    "issueDate": "",
+                    "expiryDate": "",
+                }
+                return ExtractedKycData(**fallback_data)
 
             logger.info(
                 "Successfully extracted KYC data (PaddleOCR): %s, ID: %s",

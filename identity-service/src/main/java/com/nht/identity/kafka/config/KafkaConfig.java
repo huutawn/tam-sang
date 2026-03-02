@@ -13,7 +13,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
 @Configuration
@@ -45,16 +44,33 @@ public class KafkaConfig {
     // Consumer Configuration
     @Bean
     public ConsumerFactory<String, Object> consumerFactory() {
+        // Configure ObjectMapper with JavaTimeModule for LocalDateTime support
+        com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        objectMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        objectMapper.configure(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+
+        org.springframework.kafka.support.serializer.JsonDeserializer<com.nht.identity.dto.event.KycAnalyzedEvent>
+                jsonDeserializer = new org.springframework.kafka.support.serializer.JsonDeserializer<>(
+                        com.nht.identity.dto.event.KycAnalyzedEvent.class, objectMapper);
+
+        jsonDeserializer.addTrustedPackages("com.nht.identity.*");
+        jsonDeserializer.setUseTypeHeaders(false);
+
+        // Wrap in ErrorHandlingDeserializer to safely skip poison pills
+        @SuppressWarnings("unchecked")
+        org.apache.kafka.common.serialization.Deserializer<Object> rawJsonDeserializer =
+                (org.apache.kafka.common.serialization.Deserializer<Object>) (Object) jsonDeserializer;
+
+        org.springframework.kafka.support.serializer.ErrorHandlingDeserializer<Object> errorHandlingDeserializer =
+                new org.springframework.kafka.support.serializer.ErrorHandlingDeserializer<>(rawJsonDeserializer);
+
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "com.nht.identity.*");
-        configProps.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.nht.identity.dto.event.KycAnalyzedEvent");
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        return new DefaultKafkaConsumerFactory<>(configProps);
+
+        return new DefaultKafkaConsumerFactory<>(configProps, new StringDeserializer(), errorHandlingDeserializer);
     }
 
     @Bean

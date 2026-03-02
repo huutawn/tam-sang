@@ -51,10 +51,10 @@ public class KycController {
                 .build();
     }
 
-    @GetMapping("/valid/{userId}")
-    public ApiResponse<ValidKycResponse> validKyc(@PathVariable String userId) {
-        log.info("Received request to get KYC profile for userId: {}", userId);
-        ValidKycResponse response = kycService.validKyc(userId);
+    @GetMapping("/valid/{email}")
+    public ApiResponse<ValidKycResponse> validKyc(@PathVariable String email) {
+        log.info("Received request to get KYC profile for email: {}", email);
+        ValidKycResponse response = kycService.validKyc(email);
         return ApiResponse.<ValidKycResponse>builder()
                 .code(1000)
                 .result(response)

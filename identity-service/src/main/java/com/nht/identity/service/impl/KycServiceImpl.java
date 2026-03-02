@@ -44,10 +44,8 @@ public class KycServiceImpl implements KycService {
         log.info("Submitting KYC for userId: {}", userId);
 
         String email = SecurityUtils.getCurrentUserLogin().get();
-        userId = userRepository
-                .findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED))
-                .getId();
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        userId = user.getId();
 
         // Upload front image to File Service
         log.info("Uploading front image for userId: {}", userId);
@@ -64,10 +62,14 @@ public class KycServiceImpl implements KycService {
                 .userId(userId)
                 .frontImageUrl(frontImageUrl)
                 .backImageUrl(backImageUrl)
-                .status(KycStatus.APPROVED)
+                .status(KycStatus.PENDING)
                 .build();
-
-        kycProfile = kycProfileRepository.save(kycProfile);
+        if (user.getKycProfile() != null) {
+            user.setKycProfile(kycProfile);
+            userRepository.save(user);
+        } else {
+            kycProfile = kycProfileRepository.save(kycProfile);
+        }
         log.info("Created KYC profile with id: {} for userId: {}", kycProfile.getId(), userId);
 
         // Publish Kafka event for AI processing
@@ -111,8 +113,13 @@ public class KycServiceImpl implements KycService {
     }
 
     @Override
-    public ValidKycResponse validKyc(String userId) {
-        Optional<User> user = userRepository.findById(userId);
+    public ValidKycResponse validKyc(String email) {
+        Optional<User> user = null;
+        log.info("User email: {}", email);
+        user = userRepository.findByEmail(email);
+        log.info("User id: {}", user.get().getId());
+        String userId = user.get().getId();
+
         if (user.isEmpty()) {
             return ValidKycResponse.builder()
                     .isValid(false)

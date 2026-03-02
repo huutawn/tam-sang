@@ -89,9 +89,14 @@ class KycKafkaConsumer:
                 enable_auto_commit=True,
             )
 
+            def _json_serializer_default(obj):
+                if isinstance(obj, datetime):
+                    return obj.isoformat()
+                return str(obj)
+
             self.producer = KafkaProducer(
                 bootstrap_servers=settings.kafka_bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),
+                value_serializer=lambda v: json.dumps(v, default=_json_serializer_default).encode("utf-8"),
             )
 
             self.running = True
@@ -176,6 +181,13 @@ class KycKafkaConsumer:
 
         except KeyboardInterrupt:
             logger.info("Consumer interrupted by user")
+        except AssertionError as e:
+            # Closing the consumer from the main thread causes an AssertionError 
+            # in the background thread's blocking __next__ call.
+            if not self.running:
+                logger.info("Kafka consumer loop terminated gracefully during shutdown.")
+            else:
+                logger.error("Fatal assertion error in consumer loop: %s", e, exc_info=True)
         except Exception as e:
             logger.error("Fatal error in consumer loop: %s", e, exc_info=True)
         finally:

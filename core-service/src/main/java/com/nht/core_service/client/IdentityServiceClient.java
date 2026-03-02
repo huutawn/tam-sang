@@ -23,7 +23,7 @@ public interface IdentityServiceClient {
      * @return ApiResponse with ValidKycResponse containing isValid flag
      */
     @GetMapping("/kyc/valid/{userId}")
-    ApiResponse<ValidKycResponse> validateKyc(@PathVariable String userId);
+    ApiResponse<ValidKycResponse> validKyc(@PathVariable String userId);
 
     /**
      * Get KYC profile by user ID.

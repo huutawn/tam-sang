@@ -27,13 +27,15 @@ import {
 import { UserService, UserWithKycResponse } from "@/services/user.service"
 import { KYCService } from "@/services/kyc.service"
 
-type KycDisplayStatus = "none" | "PENDING" | "PROCESSING" | "VERIFIED" | "REJECTED"
+type KycDisplayStatus = "none" | "PENDING" | "PROCESSING" | "VERIFIED" | "APPROVED" | "COMPLETED" | "REJECTED"
 
 const kycStatusConfig: Record<KycDisplayStatus, { label: string; color: string; bg: string }> = {
     none: { label: "Chưa xác minh", color: "text-gray-500", bg: "bg-gray-100" },
     PENDING: { label: "Đang chờ duyệt", color: "text-amber-600", bg: "bg-amber-100" },
     PROCESSING: { label: "Đang xử lý", color: "text-blue-600", bg: "bg-blue-100" },
     VERIFIED: { label: "Đã xác minh", color: "text-emerald-600", bg: "bg-emerald-100" },
+    APPROVED: { label: "Đã xác minh", color: "text-emerald-600", bg: "bg-emerald-100" },
+    COMPLETED: { label: "Đã xác minh", color: "text-emerald-600", bg: "bg-emerald-100" },
     REJECTED: { label: "Bị từ chối", color: "text-red-600", bg: "bg-red-100" },
 }
 
@@ -109,7 +111,7 @@ export default function ThongTinCaNhanPage() {
         return [
             { label: "Họ và tên", done: !!(user.firstName || user.lastName) },
             { label: "Email", done: !!user.email },
-            { label: "Xác minh CCCD", done: user.KycStatus === "VERIFIED" || user.kycProfile?.status === "VERIFIED" },
+            { label: "Xác minh CCCD", done: user.KycStatus === "VERIFIED" || user.kycProfile?.status === "VERIFIED" || user.kycProfile?.status === "APPROVED" },
         ]
     }
 
@@ -369,7 +371,8 @@ export default function ThongTinCaNhanPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-5">
-                            {kycStatus === "VERIFIED" ? (
+                            {/* Status message */}
+                            {(kycStatus === "VERIFIED" || kycStatus === "COMPLETED" || kycStatus === "APPROVED") && (
                                 <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
                                     <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
                                     <div>
@@ -377,7 +380,9 @@ export default function ThongTinCaNhanPage() {
                                         <p className="text-xs text-emerald-600 mt-0.5">Bạn có thể tạo chiến dịch quyên góp.</p>
                                     </div>
                                 </div>
-                            ) : kycStatus === "PENDING" || kycStatus === "PROCESSING" ? (
+                            )}
+
+                            {(kycStatus === "PENDING" || kycStatus === "PROCESSING") && (
                                 <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
                                     <Loader2 className="w-5 h-5 text-amber-600 shrink-0 animate-spin" />
                                     <div>
@@ -385,96 +390,97 @@ export default function ThongTinCaNhanPage() {
                                         <p className="text-xs text-amber-600 mt-0.5">Hệ thống đang xác minh thông tin CCCD của bạn. Vui lòng chờ.</p>
                                     </div>
                                 </div>
-                            ) : (
-                                <>
-                                    {kycStatus === "REJECTED" && user?.kycProfile?.rejectionReason && (
-                                        <div className="flex items-start gap-3 p-4 bg-red-50 rounded-xl border border-red-200">
-                                            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                                            <div>
-                                                <p className="text-sm font-medium text-red-800">Xác minh bị từ chối</p>
-                                                <p className="text-xs text-red-600 mt-0.5">Lý do: {user.kycProfile.rejectionReason}</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                    <p className="text-sm text-gray-500">
-                                        Tải lên CCCD để xác minh danh tính và tăng độ tin cậy cho chiến
-                                        dịch của bạn.
-                                    </p>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        {/* Front CCCD */}
-                                        <div
-                                            onClick={() => frontInputRef.current?.click()}
-                                            className="border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center gap-3 hover:border-emerald-300 hover:bg-emerald-50/30 transition-colors cursor-pointer group overflow-hidden"
-                                        >
-                                            <input
-                                                type="file"
-                                                ref={frontInputRef}
-                                                accept="image/jpeg,image/png"
-                                                className="hidden"
-                                                onChange={(e) => {
-                                                    const f = e.target.files?.[0]
-                                                    if (f) handleFileSelect("front", f)
-                                                }}
-                                            />
-                                            {frontPreview ? (
-                                                <img src={frontPreview} alt="Mặt trước CCCD" className="w-full h-32 object-cover rounded-lg" />
-                                            ) : (
-                                                <>
-                                                    <div className="w-12 h-12 rounded-full bg-gray-100 group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
-                                                        <Upload className="w-5 h-5 text-gray-400 group-hover:text-emerald-500 transition-colors" />
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="text-sm font-medium text-gray-700">
-                                                            Mặt trước CCCD
-                                                        </p>
-                                                        <p className="text-xs text-gray-400 mt-1">
-                                                            Kéo thả hoặc nhấn để tải lên
-                                                        </p>
-                                                        <p className="text-xs text-gray-300 mt-0.5">
-                                                            JPG, PNG — tối đa 10MB
-                                                        </p>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                        {/* Back CCCD */}
-                                        <div
-                                            onClick={() => backInputRef.current?.click()}
-                                            className="border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center gap-3 hover:border-emerald-300 hover:bg-emerald-50/30 transition-colors cursor-pointer group overflow-hidden"
-                                        >
-                                            <input
-                                                type="file"
-                                                ref={backInputRef}
-                                                accept="image/jpeg,image/png"
-                                                className="hidden"
-                                                onChange={(e) => {
-                                                    const f = e.target.files?.[0]
-                                                    if (f) handleFileSelect("back", f)
-                                                }}
-                                            />
-                                            {backPreview ? (
-                                                <img src={backPreview} alt="Mặt sau CCCD" className="w-full h-32 object-cover rounded-lg" />
-                                            ) : (
-                                                <>
-                                                    <div className="w-12 h-12 rounded-full bg-gray-100 group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
-                                                        <Upload className="w-5 h-5 text-gray-400 group-hover:text-emerald-500 transition-colors" />
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="text-sm font-medium text-gray-700">
-                                                            Mặt sau CCCD
-                                                        </p>
-                                                        <p className="text-xs text-gray-400 mt-1">
-                                                            Kéo thả hoặc nhấn để tải lên
-                                                        </p>
-                                                        <p className="text-xs text-gray-300 mt-0.5">
-                                                            JPG, PNG — tối đa 10MB
-                                                        </p>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
+                            )}
 
+                            {kycStatus === "REJECTED" && user?.kycProfile?.rejectionReason && (
+                                <div className="flex items-start gap-3 p-4 bg-red-50 rounded-xl border border-red-200">
+                                    <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-sm font-medium text-red-800">Xác minh bị từ chối</p>
+                                        <p className="text-xs text-red-600 mt-0.5">Lý do: {user.kycProfile.rejectionReason}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {(kycStatus === "none" || kycStatus === "REJECTED") && (
+                                <p className="text-sm text-gray-500">
+                                    Tải lên CCCD để xác minh danh tính và tăng độ tin cậy cho chiến
+                                    dịch của bạn.
+                                </p>
+                            )}
+
+                            {/* Images Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {/* Front CCCD */}
+                                <div
+                                    onClick={() => (kycStatus === "none" || kycStatus === "REJECTED") ? frontInputRef.current?.click() : undefined}
+                                    className={`border-2 ${(kycStatus === "none" || kycStatus === "REJECTED") ? "border-dashed border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/30 cursor-pointer" : "border-solid border-gray-200 opacity-90 cursor-default"} rounded-xl p-8 flex flex-col items-center justify-center gap-3 transition-colors group overflow-hidden`}
+                                >
+                                    {(kycStatus === "none" || kycStatus === "REJECTED") && (
+                                        <input
+                                            type="file"
+                                            ref={frontInputRef}
+                                            accept="image/jpeg,image/png"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const f = e.target.files?.[0]
+                                                if (f) handleFileSelect("front", f)
+                                            }}
+                                        />
+                                    )}
+                                    {(frontPreview || user?.kycProfile?.frontImageUrl) ? (
+                                        <img src={frontPreview || user?.kycProfile?.frontImageUrl} alt="Mặt trước CCCD" className="w-full h-32 object-cover rounded-lg" />
+                                    ) : (
+                                        <>
+                                            <div className="w-12 h-12 rounded-full bg-gray-100 group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
+                                                <Upload className="w-5 h-5 text-gray-400 group-hover:text-emerald-500 transition-colors" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-medium text-gray-700">Mặt trước CCCD</p>
+                                                <p className="text-xs text-gray-400 mt-1">Kéo thả hoặc nhấn để tải lên</p>
+                                                <p className="text-xs text-gray-300 mt-0.5">JPG, PNG — tối đa 10MB</p>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Back CCCD */}
+                                <div
+                                    onClick={() => (kycStatus === "none" || kycStatus === "REJECTED") ? backInputRef.current?.click() : undefined}
+                                    className={`border-2 ${(kycStatus === "none" || kycStatus === "REJECTED") ? "border-dashed border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/30 cursor-pointer" : "border-solid border-gray-200 opacity-90 cursor-default"} rounded-xl p-8 flex flex-col items-center justify-center gap-3 transition-colors group overflow-hidden`}
+                                >
+                                    {(kycStatus === "none" || kycStatus === "REJECTED") && (
+                                        <input
+                                            type="file"
+                                            ref={backInputRef}
+                                            accept="image/jpeg,image/png"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const f = e.target.files?.[0]
+                                                if (f) handleFileSelect("back", f)
+                                            }}
+                                        />
+                                    )}
+                                    {(backPreview || user?.kycProfile?.backImageUrl) ? (
+                                        <img src={backPreview || user?.kycProfile?.backImageUrl} alt="Mặt sau CCCD" className="w-full h-32 object-cover rounded-lg" />
+                                    ) : (
+                                        <>
+                                            <div className="w-12 h-12 rounded-full bg-gray-100 group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
+                                                <Upload className="w-5 h-5 text-gray-400 group-hover:text-emerald-500 transition-colors" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-medium text-gray-700">Mặt sau CCCD</p>
+                                                <p className="text-xs text-gray-400 mt-1">Kéo thả hoặc nhấn để tải lên</p>
+                                                <p className="text-xs text-gray-300 mt-0.5">JPG, PNG — tối đa 10MB</p>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            {(kycStatus === "none" || kycStatus === "REJECTED") && (
+                                <>
                                     {kycMessage && (
                                         <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${kycMessage.type === "success"
                                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"

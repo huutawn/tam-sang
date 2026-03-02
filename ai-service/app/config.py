@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     service_name: str = "ai-service"
     service_version: str = "1.0.0"
+    
+    # Eureka Registration
+    eureka_url: str = "http://localhost:8761/eureka"
 
     class Config:
         env_file = ".env"

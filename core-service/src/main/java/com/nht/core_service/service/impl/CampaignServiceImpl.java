@@ -51,9 +51,10 @@ public class CampaignServiceImpl implements CampaignService {
 		log.info("Creating campaign: {}", request.title());
 
 		String userId = JwtUtils.getUserIdFromToken();
-		
+		String userEmail = JwtUtils.getEmailFromToken();
+		log.info("User ID from token: {}", userId);
 		// Step 1: Validate KYC status
-		KycProfileResponse kycProfile = validateKycAndGetProfile(userId);
+		KycProfileResponse kycProfile = validateKycAndGetProfile(userId, userEmail);
 		log.info("KYC validated for user: {}", userId);
 
 		// Step 2: Create Campaign in MongoDB with status PENDING
@@ -79,7 +80,7 @@ public class CampaignServiceImpl implements CampaignService {
 
 		// Step 3: Create Wallet in blockchain-service (Saga Pattern)
 		WalletResponse walletResponse = createWalletWithRollback(savedCampaign.getId());
-		log.info("Wallet created in blockchain-service: walletId={}, campaignId={}", 
+		log.info("Wallet created in blockchain-service: walletId={}, campaignId={}",
 				walletResponse.id(), savedCampaign.getId());
 
 		// Step 4: Update Campaign status to ACTIVE
@@ -99,8 +100,7 @@ public class CampaignServiceImpl implements CampaignService {
 					savedCampaign.getEndDate().toLocalDate(),
 					userId,
 					kycProfile.fullName(),
-					kycProfile.idNumber()
-			);
+					kycProfile.idNumber());
 			log.info("Contract sign request published to Kafka for campaign: {}", savedCampaign.getId());
 		} catch (Exception e) {
 			// Log but don't fail - contract creation is async
@@ -114,11 +114,11 @@ public class CampaignServiceImpl implements CampaignService {
 	 * Validates KYC status and returns KYC profile for contract creation.
 	 * Throws exception if KYC is not verified.
 	 */
-	private KycProfileResponse validateKycAndGetProfile(String userId) {
+	private KycProfileResponse validateKycAndGetProfile(String userId, String userEmail) {
 		try {
 			// Check if KYC is valid
-			ApiResponse<ValidKycResponse> kycValidation = identityServiceClient.validateKyc(userId);
-			
+			ApiResponse<ValidKycResponse> kycValidation = identityServiceClient.validKyc(userEmail);
+
 			if (kycValidation.code() != 1000 || kycValidation.result() == null) {
 				log.error("KYC validation failed: code={}", kycValidation.code());
 				throw new AppException(ErrorCode.KYC_VALIDATION_FAILED);
@@ -126,15 +126,15 @@ public class CampaignServiceImpl implements CampaignService {
 
 			ValidKycResponse validKyc = kycValidation.result();
 			log.info("kyc valid: {}", validKyc.isValid());
-			if (validKyc.isValid()==false) {
-				log.warn("KYC not verified for user: {}, status: {}, message: {}", 
+			if (validKyc.isValid() == false) {
+				log.warn("KYC not verified for user: {}, status: {}, message: {}",
 						userId, validKyc.status(), validKyc.message());
 				throw new AppException(ErrorCode.KYC_NOT_VERIFIED);
 			}
 
 			// Get KYC profile for contract
 			ApiResponse<KycProfileResponse> profileResponse = identityServiceClient.getKycProfileByUserId(userId);
-			
+
 			if (profileResponse.code() != 1000 || profileResponse.result() == null) {
 				log.error("Failed to get KYC profile: code={}", profileResponse.code());
 				throw new AppException(ErrorCode.KYC_VALIDATION_FAILED);
@@ -272,7 +272,8 @@ public class CampaignServiceImpl implements CampaignService {
 				log.warn("Could not find wallet for campaign: {}, code={}", id, walletResponse.code());
 			}
 		} catch (Exception e) {
-			// Rollback campaign status — wallet is still active, can't leave campaign CLOSED
+			// Rollback campaign status — wallet is still active, can't leave campaign
+			// CLOSED
 			log.error("Failed to freeze wallet for campaign: {}, rolling back status to {}", id, previousStatus, e);
 			campaign.setStatus(previousStatus);
 			campaignRepository.save(campaign);

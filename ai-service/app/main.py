@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.kafka.consumer import kafka_consumer
+import py_eureka_client.eureka_client as eureka_client
 
 # Configure logging
 logging.basicConfig(
@@ -21,6 +22,18 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.service_name} v{settings.service_version}")
 
+    # Register with Eureka
+    try:
+        await eureka_client.init_async(
+            eureka_server=settings.eureka_url,
+            app_name=settings.service_name,
+            instance_port=8084,
+            instance_host="localhost", # Or get from env if running in Docker
+        )
+        logger.info(f"Registered with Eureka at {settings.eureka_url}")
+    except Exception as e:
+        logger.error(f"Failed to register with Eureka: {e}")
+
     # Start Kafka consumer in background thread
     consumer_thread = threading.Thread(target=kafka_consumer.start, daemon=True)
     consumer_thread.start()
@@ -30,6 +43,14 @@ async def lifespan(app: FastAPI):
 
     # Shutdown — release all long-lived resources
     logger.info("Shutting down AI service...")
+    
+    # Deregister from Eureka
+    try:
+        await eureka_client.stop_async()
+        logger.info("Deregistered from Eureka")
+    except Exception as e:
+        logger.warning(f"Error deregistering from Eureka: {e}")
+
     kafka_consumer.stop()
 
     # Close Vector DB connection pool (BUG-10 fix)
