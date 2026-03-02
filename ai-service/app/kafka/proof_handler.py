@@ -11,7 +11,6 @@ from app.models.proof_events import (
 #
 from app.services.image_forensics import image_forensics_service
 from app.services.llm_reasoning import llm_reasoning_service
-from app.services.face_verification import face_verification_service
 from app.utils.image_utils import download_image
 
 logger = logging.getLogger(__name__)
@@ -24,9 +23,8 @@ class ProofVerificationHandler:
     Flow:
     1. Nhận ProofVerificationRequest từ Kafka
     2. Download proof image
-    3. Route theo type (INVOICE hoặc SELFIE)
-    4. Thực hiện verification tương ứng
-    5. Return ProofVerificationResult
+    3. Xử lý INVOICE verification (forensics + LLM)
+    4. Return ProofVerificationResult
     """
     
     async def handle_invoice_proof(
@@ -126,111 +124,13 @@ class ProofVerificationHandler:
                 )
             )
     
-    async def handle_selfie_proof(
-        self,
-        proof_id: str,
-        image_bytes: bytes,
-        context: dict
-    ) -> ProofVerificationResult:
-        """
-        Xử lý proof loại SELFIE (ảnh tự chụp)
-        
-        Steps:
-        1. Image forensics (EXIF + hash)
-        2. Face verification với KYC image
-        3. Calculate final score
-        
-        Args:
-            proof_id: ID của proof
-            image_bytes: Binary data của ảnh selfie
-            context: Dict chứa kycImageUrl
-            
-        Returns:
-            ProofVerificationResult
-        """
-        try:
-            logger.info(f"Processing SELFIE proof: {proof_id}")
-            
-            # Step 1: Image forensics
-            forensics_result = image_forensics_service.analyze(image_bytes)
-            
-            # Step 2: Download KYC image
-            kyc_image_url = context.get("kycImageUrl")
-            if not kyc_image_url:
-                raise ValueError("Missing kycImageUrl in context")
-            
-            kyc_image_bytes = await download_image(kyc_image_url)
-            
-            # Step 3: Face verification
-            face_result = await face_verification_service.verify_face(
-                image_bytes,
-                kyc_image_bytes
-            )
-            
-            # Step 4: Calculate final score
-            # Forensics weight: 20%, Face verification weight: 80%
-            forensics_score = 0 if forensics_result["has_warning"] else 100
-            face_score = face_result["score"]
-            
-            final_score = int(forensics_score * 0.2 + face_score * 0.8)
-            
-            # Determine validity
-            # Cần cả face verified và không có warning nghiêm trọng
-            is_valid = face_result["verified"] and not (
-                forensics_result["has_warning"] and forensics_result["software_detected"]
-            )
-            
-            # Build detailed analysis
-            analysis_details = f"""**Xác thực Khuôn mặt:**
-{face_result['details']}
-
-**Kiểm tra Forensics:**
-- EXIF: {forensics_result['details']}
-- Software: {forensics_result['software_detected'] or 'Không phát hiện'}
-
-**Điểm số:**
-- Forensics: {forensics_score}/100
-- Face Verification: {face_score}/100
-- Tổng điểm: {final_score}/100
-"""
-            
-            # Create forensics metadata
-            forensics_metadata = ForensicsMetadata(
-                has_exif_warning=forensics_result["has_warning"],
-                software_detected=forensics_result.get("software_detected", ""),
-                perceptual_hash=forensics_result.get("perceptual_hash", ""),
-                is_duplicate=forensics_result.get("is_duplicate", False),
-                details=forensics_result.get("details", "")
-            )
-            
-            return ProofVerificationResult(
-                proofId=proof_id,
-                score=final_score,
-                isValid=is_valid,
-                analysisDetails=analysis_details,
-                metadata=forensics_metadata
-            )
-            
-        except Exception as e:
-            logger.error(f"Error processing SELFIE proof {proof_id}: {e}", exc_info=True)
-            
-            return ProofVerificationResult(
-                proofId=proof_id,
-                score=0,
-                isValid=False,
-                analysisDetails=f"Lỗi xác thực selfie: {str(e)}",
-                metadata=ForensicsMetadata(
-                    has_exif_warning=True,
-                    details=f"Error: {str(e)}"
-                )
-            )
-    
     async def process_proof_verification(
         self,
         request: ProofVerificationRequest
     ) -> ProofVerificationResult:
         """
-        Main entry point để xử lý proof verification request
+        Main entry point để xử lý proof verification request.
+        Proof type is always INVOICE (face verification is handled in withdrawal flow).
         
         Args:
             request: ProofVerificationRequest event
@@ -244,21 +144,12 @@ class ProofVerificationHandler:
             # Download image
             image_bytes = await download_image(request.imageUrl)
             
-            # Route theo type
-            if request.type == "INVOICE":
-                result = await self.handle_invoice_proof(
-                    request.proofId,
-                    image_bytes,
-                    request.context
-                )
-            elif request.type == "SELFIE":
-                result = await self.handle_selfie_proof(
-                    request.proofId,
-                    image_bytes,
-                    request.context
-                )
-            else:
-                raise ValueError(f"Unknown proof type: {request.type}")
+            # Process as INVOICE
+            result = await self.handle_invoice_proof(
+                request.proofId,
+                image_bytes,
+                request.context
+            )
             
             logger.info(f"Proof verification complete - ID: {request.proofId}, Score: {result.score}, Valid: {result.isValid}")
             return result

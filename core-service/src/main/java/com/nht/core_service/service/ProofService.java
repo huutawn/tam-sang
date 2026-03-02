@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 
 import com.nht.core_service.dto.request.HybridReasoningCallbackRequest;
 import com.nht.core_service.dto.response.ProofResponse;
+import com.nht.core_service.enums.AiStatus;
 import com.nht.core_service.kafka.event.ProofVerificationResultEvent;
 
 public interface ProofService {
@@ -19,4 +20,7 @@ public interface ProofService {
 	void updateProofFromAiResult(ProofVerificationResultEvent event);
 	
 	void updateProofFromHybridResult(HybridReasoningCallbackRequest request);
+	
+	// Admin: paginated proofs with optional aiStatus filter
+	Page<ProofResponse> getProofsForAdmin(AiStatus aiStatus, int page, int size);
 }

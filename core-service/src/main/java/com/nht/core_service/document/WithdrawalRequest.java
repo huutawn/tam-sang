@@ -10,6 +10,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.nht.core_service.enums.FaceVerificationStatus;
 import com.nht.core_service.enums.WithdrawalStatus;
 import com.nht.core_service.enums.WithdrawalType;
 
@@ -44,6 +45,15 @@ public class WithdrawalRequest {
 	@Builder.Default
 	private Boolean quick = false;
 	private String aiAnalysisResult;
+
+	// Face verification fields
+	private String selfieImageUrl;
+
+	@Indexed
+	@Builder.Default
+	private FaceVerificationStatus faceVerificationStatus = FaceVerificationStatus.PENDING;
+
+	private String faceVerificationLog;
 
 	@Indexed
 	@Builder.Default

@@ -14,5 +14,6 @@ public record CreateWithdrawalRequest(
 		@NotNull @Positive BigDecimal amount,
 		@NotBlank String reason,
 		WithdrawalType type,
-		Boolean quick
+		Boolean quick,
+		@NotBlank String selfieImageUrl
 		) {}

@@ -24,9 +24,13 @@ from app.config import settings
 from app.models.events import KycInitiatedEvent, KycAnalyzedEvent
 from app.models.proof_events import ProofVerificationRequest, ProofVerificationResult
 from app.models.hybrid_events import HybridReasoningRequest
+from app.models.face_verification_events import FaceVerificationRequest, FaceVerificationResult
 from app.services.ocr_service import ocr_service
 from app.kafka.proof_handler import proof_verification_handler
 from app.services.hybrid_reasoning import hybrid_reasoning_service
+from app.services.image_forensics import image_forensics_service
+from app.services.face_verification import face_verification_service
+from app.utils.image_utils import download_image
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +39,11 @@ class KycKafkaConsumer:
     """
     Kafka consumer for AI verification events.
 
-    Handles messages from three topics:
+    Handles messages from four topics:
       - KYC verification (OCR-based ID card processing)
-      - Proof verification (invoice/selfie analysis)
+      - Proof verification (invoice analysis)
       - Hybrid reasoning (CLIP + Gemini multi-modal analysis)
+      - Face verification (selfie vs KYC image for withdrawals)
 
     Thread-safety:
       This consumer is designed to run in exactly ONE background thread.
@@ -50,6 +55,7 @@ class KycKafkaConsumer:
         self.producer: Optional[KafkaProducer] = None
         self.running: bool = False
         self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._http_client = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -77,6 +83,7 @@ class KycKafkaConsumer:
                 settings.kafka_topic_verification,        # KYC verification
                 settings.kafka_topic_proof_verification,  # Proof verification
                 settings.kafka_topic_hybrid_reasoning,    # Hybrid reasoning (CLIP + Gemini)
+                settings.kafka_topic_face_verification,   # Face verification for withdrawals
             ]
             logger.info("Starting Kafka consumer for topics: %s", topics)
 
@@ -171,6 +178,8 @@ class KycKafkaConsumer:
                         self._dispatch_proof(event_data)
                     elif topic == settings.kafka_topic_hybrid_reasoning:
                         self._dispatch_hybrid(event_data)
+                    elif topic == settings.kafka_topic_face_verification:
+                        self._dispatch_face_verification(event_data)
                     else:
                         logger.warning("Received message from unknown topic: %s", topic)
 
@@ -224,6 +233,15 @@ class KycKafkaConsumer:
             self._loop.run_until_complete(self.process_hybrid_reasoning_event(event_data))
         except Exception as e:
             logger.error("Failed to dispatch hybrid event (proof_id=%s): %s", proof_id, e, exc_info=True)
+
+    def _dispatch_face_verification(self, event_data: dict) -> None:
+        """Parse and process a face verification event for withdrawal."""
+        withdrawal_id = event_data.get("withdrawalId", "unknown")
+        logger.info("Received FaceVerificationRequest: %s", withdrawal_id)
+        try:
+            self._loop.run_until_complete(self.process_face_verification_event(event_data))
+        except Exception as e:
+            logger.error("Failed to dispatch face verification event (withdrawalId=%s): %s", withdrawal_id, e, exc_info=True)
 
     # ------------------------------------------------------------------
     # Async handlers
@@ -335,6 +353,167 @@ class KycKafkaConsumer:
                 "Failed to process hybrid reasoning event for proof_id %s: %s",
                 proof_id, e, exc_info=True,
             )
+
+    async def process_face_verification_event(self, event_data: dict) -> None:
+        """
+        Process face verification event for withdrawals.
+
+        Flow:
+          1. Download selfie image
+          2. Resolve KYC image URL (via identity-service or from event)
+          3. Run Image Forensics on selfie
+          4. Run Face Verification (selfie vs KYC image)
+          5. Send HTTP callback to Core-service with results
+        """
+        withdrawal_id = event_data.get("withdrawalId", "unknown")
+        try:
+            logger.info("Processing face verification for withdrawal: %s", withdrawal_id)
+
+            request = FaceVerificationRequest(**event_data)
+
+            # 1. Download selfie image
+            selfie_bytes = await download_image(request.selfieImageUrl)
+
+            # 2. Resolve KYC image
+            kyc_image_url = request.kycImageUrl
+            if not kyc_image_url:
+                # Try to get KYC image from identity-service via API gateway
+                kyc_image_url = await self._resolve_kyc_image_url(request.userId)
+
+            if not kyc_image_url:
+                logger.error("Cannot resolve KYC image URL for user: %s", request.userId)
+                await self._send_face_verification_callback(
+                    withdrawal_id, False, 0, "FAILED",
+                    "Không tìm được ảnh KYC để đối chiếu khuôn mặt"
+                )
+                return
+
+            kyc_bytes = await download_image(kyc_image_url)
+
+            # 3. Image Forensics on selfie
+            forensics_result = image_forensics_service.analyze(selfie_bytes)
+            forensics_score = 0 if forensics_result["has_warning"] else 100
+
+            # 4. Face Verification
+            face_result = await face_verification_service.verify_face(
+                selfie_bytes, kyc_bytes
+            )
+            face_score = face_result["score"]
+
+            # 5. Calculate final score (20% forensics + 80% face)
+            final_score = int(forensics_score * 0.2 + face_score * 0.8)
+
+            # Determine status
+            has_software_warning = (
+                forensics_result["has_warning"] and forensics_result.get("software_detected")
+            )
+
+            if face_result["verified"] and not has_software_warning:
+                if final_score >= 80:
+                    status = "VERIFIED"
+                else:
+                    status = "WARNING"
+            else:
+                if has_software_warning:
+                    status = "FAILED"
+                elif not face_result["verified"]:
+                    status = "FAILED"
+                else:
+                    status = "WARNING"
+
+            verified = status == "VERIFIED"
+
+            # Build analysis log
+            analysis_log = (
+                f"**Xác thực Khuôn mặt:**\n{face_result.get('details', 'N/A')}\n\n"
+                f"**Kiểm tra Forensics:**\n"
+                f"- EXIF: {forensics_result.get('details', 'N/A')}\n"
+                f"- Software: {forensics_result.get('software_detected') or 'Không phát hiện'}\n\n"
+                f"**Điểm số:**\n"
+                f"- Forensics: {forensics_score}/100\n"
+                f"- Face Verification: {face_score}/100\n"
+                f"- Tổng điểm: {final_score}/100"
+            )
+
+            # 6. Send callback
+            await self._send_face_verification_callback(
+                withdrawal_id, verified, final_score, status, analysis_log
+            )
+
+            logger.info(
+                "Face verification complete for withdrawal %s: score=%d, status=%s",
+                withdrawal_id, final_score, status
+            )
+
+        except Exception as e:
+            logger.error(
+                "Failed to process face verification for withdrawal %s: %s",
+                withdrawal_id, e, exc_info=True,
+            )
+            # Send error callback
+            try:
+                await self._send_face_verification_callback(
+                    withdrawal_id, False, 0, "FAILED",
+                    f"Lỗi hệ thống khi xác thực khuôn mặt: {str(e)}"
+                )
+            except Exception as cb_err:
+                logger.error("Failed to send error callback: %s", cb_err)
+
+    async def _resolve_kyc_image_url(self, user_id: str) -> Optional[str]:
+        """Resolve KYC front image URL from identity-service."""
+        import httpx
+        try:
+            url = f"{settings.core_service_url}/identity-service/kyc/user/{user_id}"
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data.get("result", {}).get("frontImageUrl")
+        except Exception as e:
+            logger.error("Failed to resolve KYC image for user %s: %s", user_id, e)
+        return None
+
+    async def _send_face_verification_callback(
+        self, withdrawal_id: str, verified: bool, score: int, status: str, analysis_log: str
+    ) -> bool:
+        """Send face verification result to Core-service via HTTP callback."""
+        import httpx
+        callback_url = f"{settings.core_service_url}/core-service{settings.face_verification_callback_endpoint}"
+        
+        payload = FaceVerificationResult(
+            withdrawal_id=withdrawal_id,
+            verified=verified,
+            score=score,
+            status=status,
+            analysis_log=analysis_log
+        )
+
+        logger.info("Sending face verification callback to %s for withdrawal %s", callback_url, withdrawal_id)
+
+        for attempt in range(settings.callback_retry_count):
+            try:
+                async with httpx.AsyncClient(timeout=settings.callback_timeout) as client:
+                    resp = await client.post(
+                        callback_url,
+                        json=payload.model_dump(mode="json"),
+                        headers={"Content-Type": "application/json"}
+                    )
+                    if resp.status_code in (200, 201, 202):
+                        logger.info("Face verification callback successful for withdrawal %s", withdrawal_id)
+                        return True
+                    else:
+                        logger.warning(
+                            "Callback attempt %d failed: status=%d, body=%s",
+                            attempt + 1, resp.status_code, resp.text
+                        )
+            except Exception as e:
+                logger.error("Callback request failed (attempt %d): %s", attempt + 1, e)
+
+            if attempt < settings.callback_retry_count - 1:
+                await asyncio.sleep(2 ** attempt)
+
+        logger.error("All face verification callback attempts failed for withdrawal %s", withdrawal_id)
+        return False
 
     # ------------------------------------------------------------------
     # Kafka publishing

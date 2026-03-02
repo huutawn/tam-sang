@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import com.nht.core_service.document.WithdrawalRequest;
+import com.nht.core_service.enums.FaceVerificationStatus;
 import com.nht.core_service.enums.WithdrawalStatus;
 
 @Repository
@@ -20,4 +21,6 @@ public interface WithdrawalRequestRepository extends MongoRepository<WithdrawalR
 	Page<WithdrawalRequest> findByStatus(WithdrawalStatus status, Pageable pageable);
 
 	Page<WithdrawalRequest> findAll(Pageable pageable);
+
+	Page<WithdrawalRequest> findByFaceVerificationStatus(FaceVerificationStatus faceVerificationStatus, Pageable pageable);
 }

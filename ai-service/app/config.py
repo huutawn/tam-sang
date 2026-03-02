@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # Hybrid Reasoning Topic
     kafka_topic_hybrid_reasoning: str = "hybrid-reasoning-request"
     
+    # Face Verification Topic
+    kafka_topic_face_verification: str = "face-verification-request"
+    
     # Gemini API Configuration
     gemini_api_key: str = ""
     enable_gemini_mock: bool = False
@@ -32,6 +35,7 @@ class Settings(BaseSettings):
     # Note: core-service uses random port via Eureka; set this via .env in production
     core_service_url: str = "http://api-gateway:8080"
     callback_endpoint: str = "/proofs/internal/hybrid-callback"
+    face_verification_callback_endpoint: str = "/withdrawals/internal/face-verification-callback"
     callback_timeout: int = 30  # seconds
     callback_retry_count: int = 3
     

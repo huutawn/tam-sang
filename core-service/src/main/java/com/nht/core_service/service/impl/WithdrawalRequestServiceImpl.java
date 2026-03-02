@@ -4,10 +4,14 @@ import com.mongodb.client.result.UpdateResult;
 import com.nht.core_service.document.Campaign;
 import com.nht.core_service.document.WithdrawalRequest;
 import com.nht.core_service.dto.request.CreateWithdrawalRequest;
+import com.nht.core_service.dto.request.FaceVerificationCallbackRequest;
 import com.nht.core_service.dto.response.WithdrawalRequestResponse;
+import com.nht.core_service.enums.FaceVerificationStatus;
 import com.nht.core_service.enums.WithdrawalStatus;
 import com.nht.core_service.exception.AppException;
 import com.nht.core_service.exception.ErrorCode;
+import com.nht.core_service.kafka.event.FaceVerificationRequestEvent;
+import com.nht.core_service.kafka.producer.FaceVerificationProducer;
 import com.nht.core_service.repository.mongodb.CampaignRepository;
 import com.nht.core_service.repository.mongodb.WithdrawalRequestRepository;
 import com.nht.core_service.service.WithdrawalRequestService;
@@ -33,6 +37,8 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
     private final WithdrawalRequestRepository withdrawalRequestRepository;
     private final CampaignRepository campaignRepository;
     private final MongoTemplate mongoTemplate;
+    private final FaceVerificationProducer faceVerificationProducer;
+
     @Override
     @Transactional
     public WithdrawalRequestResponse createWithdrawalRequest(CreateWithdrawalRequest request) {
@@ -47,19 +53,35 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
                     .set("hasUsedQuickWithdrawal",true);
             UpdateResult updateResult = mongoTemplate.updateFirst(query,update,Campaign.class);
             if(updateResult.getModifiedCount()==0) throw new AppException(ErrorCode.QUICK_WITHDRAWAL_ALREADY_USED);
-    }
-            WithdrawalRequest withdrawalRequest = WithdrawalRequest.builder()
-                    .campaignId(request.campaignId())
-                    .amount(request.amount())
-                    .reason(request.reason())
-                    .type(request.type())
-                    .quick(request.quick())
-                    .build();
-            WithdrawalRequest saved = withdrawalRequestRepository.save(withdrawalRequest);
-            return toWithdrawalRequestResponse(saved);
         }
 
+        WithdrawalRequest withdrawalRequest = WithdrawalRequest.builder()
+                .campaignId(request.campaignId())
+                .amount(request.amount())
+                .reason(request.reason())
+                .type(request.type())
+                .quick(request.quick())
+                .selfieImageUrl(request.selfieImageUrl())
+                .faceVerificationStatus(FaceVerificationStatus.PENDING)
+                .build();
+        WithdrawalRequest saved = withdrawalRequestRepository.save(withdrawalRequest);
 
+        // Send face verification event to AI service
+        // We need the campaign owner's KYC image — get from campaign
+        Campaign campaign = campaignRepository.findById(request.campaignId())
+                .orElseThrow(() -> new AppException(ErrorCode.CAMPAIGN_NOT_FOUND));
+
+        FaceVerificationRequestEvent event = new FaceVerificationRequestEvent(
+                saved.getId(),
+                campaign.getOwnerId(),
+                request.selfieImageUrl(),
+                null  // kycImageUrl will be resolved by AI service via identity-service API
+        );
+        faceVerificationProducer.sendFaceVerificationRequest(event);
+        log.info("Face verification event sent for withdrawal: {}", saved.getId());
+
+        return toWithdrawalRequestResponse(saved);
+    }
 
     @Override
     public WithdrawalRequestResponse getWithdrawalRequestById(String id) {
@@ -67,6 +89,7 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
                 .orElseThrow(()->new AppException(ErrorCode.WITHDRAWAL_NOT_FOUND));
         return toWithdrawalRequestResponse(withdrawalRequest);
     }
+
     private WithdrawalRequestResponse toWithdrawalRequestResponse(WithdrawalRequest withdrawalRequest){
         return new WithdrawalRequestResponse(
                 withdrawalRequest.getId(),
@@ -77,6 +100,9 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
                 withdrawalRequest.getType(),
                 withdrawalRequest.getQuick(),
                 withdrawalRequest.getAiAnalysisResult(),
+                withdrawalRequest.getSelfieImageUrl(),
+                withdrawalRequest.getFaceVerificationStatus(),
+                withdrawalRequest.getFaceVerificationLog(),
                 withdrawalRequest.getStatus(),
                 withdrawalRequest.getCreatedAt()
         );
@@ -111,6 +137,20 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
         Page<WithdrawalRequest> withdrawals = withdrawalRequestRepository.findAll(pageable);
         return withdrawals.map(this::toWithdrawalRequestResponse);
     }
+
+    @Override
+    public Page<WithdrawalRequestResponse> getWithdrawalsForAdmin(FaceVerificationStatus faceStatus, int page, int size) {
+        log.info("Getting withdrawals for admin - faceStatus: {}, page: {}, size: {}", faceStatus, page, size);
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.ASC, "faceVerificationStatus")
+                        .and(Sort.by(Sort.Direction.DESC, "createdAt")));
+        if (faceStatus != null) {
+            return withdrawalRequestRepository.findByFaceVerificationStatus(faceStatus, pageable)
+                    .map(this::toWithdrawalRequestResponse);
+        }
+        return withdrawalRequestRepository.findAll(pageable)
+                .map(this::toWithdrawalRequestResponse);
+    }
     
     @Override
     public WithdrawalRequestResponse approveWithdrawal(String id) {
@@ -125,7 +165,6 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
         withdrawalRequest.setStatus(WithdrawalStatus.WAITING_PROOF);
         WithdrawalRequest saved = withdrawalRequestRepository.save(withdrawalRequest);
         
-        // TODO: Trigger transaction to wallet (future feature)
         log.info("Withdrawal request approved and set to WAITING_PROOF: {}", id);
         
         return toWithdrawalRequestResponse(saved);
@@ -142,11 +181,35 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
         }
         
         withdrawalRequest.setStatus(WithdrawalStatus.REJECTED);
-        withdrawalRequest.setAiAnalysisResult(reason);  // Store rejection reason
+        withdrawalRequest.setAiAnalysisResult(reason);
         WithdrawalRequest saved = withdrawalRequestRepository.save(withdrawalRequest);
         
         log.info("Withdrawal request rejected: {}", id);
         
         return toWithdrawalRequestResponse(saved);
+    }
+
+    @Override
+    public void updateFaceVerificationResult(FaceVerificationCallbackRequest request) {
+        log.info("Updating face verification result for withdrawal: {}", request.withdrawalId());
+        
+        WithdrawalRequest withdrawalRequest = withdrawalRequestRepository.findById(request.withdrawalId())
+                .orElseThrow(() -> new AppException(ErrorCode.WITHDRAWAL_NOT_FOUND));
+        
+        // Map status string to enum
+        FaceVerificationStatus faceStatus;
+        try {
+            faceStatus = FaceVerificationStatus.valueOf(request.status());
+        } catch (IllegalArgumentException e) {
+            log.warn("Unknown face verification status: {}, defaulting to WARNING", request.status());
+            faceStatus = FaceVerificationStatus.WARNING;
+        }
+        
+        withdrawalRequest.setFaceVerificationStatus(faceStatus);
+        withdrawalRequest.setFaceVerificationLog(request.analysisLog());
+        
+        withdrawalRequestRepository.save(withdrawalRequest);
+        log.info("Face verification updated for withdrawal: {} -> status: {}, score: {}", 
+                request.withdrawalId(), faceStatus, request.score());
     }
 }

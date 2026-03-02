@@ -5,9 +5,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.nht.core_service.dto.request.CreateWithdrawalRequest;
+import com.nht.core_service.dto.request.FaceVerificationCallbackRequest;
 import com.nht.core_service.dto.request.RejectWithdrawalRequest;
 import com.nht.core_service.dto.response.ApiResponse;
 import com.nht.core_service.dto.response.WithdrawalRequestResponse;
+import com.nht.core_service.enums.FaceVerificationStatus;
 import com.nht.core_service.enums.WithdrawalStatus;
 import com.nht.core_service.service.WithdrawalRequestService;
 
@@ -59,6 +61,21 @@ public class WithdrawalController {
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawals retrieved successfully", withdrawals));
 	}
 	
+	/**
+	 * Admin endpoint: Get all withdrawals with optional face verification status filter.
+	 * Sorted by faceVerificationStatus (WARNING first) then by createdAt DESC.
+	 */
+	@GetMapping("/admin")
+	public ResponseEntity<ApiResponse<Page<WithdrawalRequestResponse>>> getWithdrawalsForAdmin(
+		@RequestParam(required = false) FaceVerificationStatus faceStatus,
+		@RequestParam(defaultValue = "0") int page,
+		@RequestParam(defaultValue = "10") int size
+	) {
+		log.info("Admin getting withdrawals - faceStatus: {}, page: {}, size: {}", faceStatus, page, size);
+		Page<WithdrawalRequestResponse> withdrawals = withdrawalRequestService.getWithdrawalsForAdmin(faceStatus, page, size);
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Admin withdrawals retrieved successfully", withdrawals));
+	}
+	
 	@PutMapping("/{id}/approve")
 	public ResponseEntity<ApiResponse<WithdrawalRequestResponse>> approveWithdrawal(
 		@PathVariable String id
@@ -76,5 +93,29 @@ public class WithdrawalController {
 		log.info("Rejecting withdrawal request: {} with reason: {}", id, request.reason());
 		WithdrawalRequestResponse response = withdrawalRequestService.rejectWithdrawal(id, request.reason());
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal request rejected successfully", response));
+	}
+	
+	// ------------------------------------------------------------------
+	// Internal callback endpoint (called by AI-service)
+	// ------------------------------------------------------------------
+	
+	/**
+	 * Receive face verification result from AI-service via HTTP callback.
+	 */
+	@PostMapping("/internal/face-verification-callback")
+	public ResponseEntity<ApiResponse<Void>> handleFaceVerificationCallback(
+		@Valid @RequestBody FaceVerificationCallbackRequest request
+	) {
+		log.info("Received face verification callback for withdrawalId: {}, status: {}", 
+			request.withdrawalId(), request.status());
+		
+		try {
+			withdrawalRequestService.updateFaceVerificationResult(request);
+			return ResponseEntity.ok(new ApiResponse<>(1000, "Face verification result processed", null));
+		} catch (Exception e) {
+			log.error("Failed to process face verification callback for withdrawalId: {}", request.withdrawalId(), e);
+			return ResponseEntity.internalServerError()
+				.body(new ApiResponse<>(5000, "Failed to process callback: " + e.getMessage(), null));
+		}
 	}
 }

@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.nht.core_service.dto.request.HybridReasoningCallbackRequest;
 import com.nht.core_service.dto.response.ApiResponse;
 import com.nht.core_service.dto.response.ProofResponse;
+import com.nht.core_service.enums.AiStatus;
 import com.nht.core_service.service.ProofService;
 
 import jakarta.validation.Valid;
@@ -59,6 +61,21 @@ public class ProofController {
 		log.info("Getting proofs for withdrawal: {}", withdrawalId);
 		List<ProofResponse> proofs = proofService.getProofsByWithdrawalId(withdrawalId);
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Proofs retrieved successfully", proofs));
+	}
+	
+	/**
+	 * Admin endpoint: Get all proofs with optional aiStatus filter.
+	 * Sorted by aiStatus (PROCESSING first) then by createdAt DESC.
+	 */
+	@GetMapping("/admin")
+	public ResponseEntity<ApiResponse<Page<ProofResponse>>> getProofsForAdmin(
+		@RequestParam(required = false) AiStatus aiStatus,
+		@RequestParam(defaultValue = "0") int page,
+		@RequestParam(defaultValue = "10") int size
+	) {
+		log.info("Admin getting proofs - aiStatus: {}, page: {}, size: {}", aiStatus, page, size);
+		Page<ProofResponse> proofs = proofService.getProofsForAdmin(aiStatus, page, size);
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Admin proofs retrieved successfully", proofs));
 	}
 	
 	// ------------------------------------------------------------------

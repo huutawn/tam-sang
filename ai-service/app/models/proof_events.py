@@ -5,19 +5,18 @@ from datetime import datetime
 
 class ProofVerificationRequest(BaseModel):
     """
-    Event để request verification cho proof (hóa đơn hoặc selfie)
+    Event để request verification cho proof (hóa đơn)
     
     Attributes:
         proofId: ID của proof cần verify
         imageUrl: URL của ảnh proof
-        type: Loại proof - INVOICE (hóa đơn) hoặc SELFIE (ảnh tự chụp)
-        context: Context data tùy theo type:
+        type: Loại proof - INVOICE (hóa đơn)
+        context: Context data:
             - INVOICE: {"campaignContext": "...", "withdrawalReason": "..."}
-            - SELFIE: {"kycImageUrl": "..."} (URL ảnh CMND/CCCD để so sánh)
     """
     proofId: str
     imageUrl: str
-    type: Literal["INVOICE", "SELFIE"]
+    type: Literal["INVOICE"]
     context: dict
     timestamp: datetime = None
     

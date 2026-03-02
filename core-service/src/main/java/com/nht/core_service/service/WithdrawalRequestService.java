@@ -1,8 +1,9 @@
 package com.nht.core_service.service;
 
-import com.nht.core_service.document.WithdrawalRequest;
 import com.nht.core_service.dto.request.CreateWithdrawalRequest;
+import com.nht.core_service.dto.request.FaceVerificationCallbackRequest;
 import com.nht.core_service.dto.response.WithdrawalRequestResponse;
+import com.nht.core_service.enums.FaceVerificationStatus;
 import com.nht.core_service.enums.WithdrawalStatus;
 
 import org.springframework.data.domain.Page;
@@ -15,11 +16,17 @@ public interface WithdrawalRequestService {
     List<WithdrawalRequestResponse> getWithdrawalRequestsByCampaignId(String campaignId);
     void changeWithdrawalRequestStatus(String id);
     
-    // New methods for pagination and filtering
+    // Pagination and filtering
     Page<WithdrawalRequestResponse> getWithdrawalsByStatus(WithdrawalStatus status, int page, int size);
     Page<WithdrawalRequestResponse> getAllWithdrawals(int page, int size);
     
-    // New methods for approval/rejection
+    // Admin: filter by face verification status
+    Page<WithdrawalRequestResponse> getWithdrawalsForAdmin(FaceVerificationStatus faceStatus, int page, int size);
+    
+    // Approval/rejection
     WithdrawalRequestResponse approveWithdrawal(String id);
     WithdrawalRequestResponse rejectWithdrawal(String id, String reason);
+    
+    // Face verification callback
+    void updateFaceVerificationResult(FaceVerificationCallbackRequest request);
 }

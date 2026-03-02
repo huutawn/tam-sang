@@ -4,6 +4,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.nht.core_service.document.Campaign;
@@ -72,16 +76,13 @@ public class ProofServiceImpl implements ProofService {
 		Campaign campaign = campaignRepository.findById(withdrawalRequest.getCampaignId())
 			.orElseThrow(() -> new AppException(ErrorCode.CAMPAIGN_NOT_FOUND));
 		
-		// 5. Determine proof type based on withdrawal type
-		String proofType = (withdrawalRequest.getType() == WithdrawalType.EMERGENCY) ? "SELFIE" : "INVOICE";
+		// 5. Proof type is always INVOICE (face verification is handled in withdrawal flow)
+		String proofType = "INVOICE";
 		
 		// 6. Build context for AI Service
 		Map<String, String> context = new HashMap<>();
 		context.put("campaignContext", campaign.getTitle() + " - " + campaign.getDescription());
 		context.put("withdrawalReason", withdrawalRequest.getReason());
-		
-		// For SELFIE type, we would need kycImageUrl (TODO: implement KYC storage)
-		// context.put("kycImageUrl", "...");
 		
 		// 7. Publish Kafka event
 		ProofVerificationRequestEvent event = new ProofVerificationRequestEvent(
@@ -228,5 +229,19 @@ public class ProofServiceImpl implements ProofService {
 			proof.getAiAnalysis(),
 			proof.getCreatedAt()
 		);
+	}
+	
+	@Override
+	public Page<ProofResponse> getProofsForAdmin(AiStatus aiStatus, int page, int size) {
+		log.info("Getting proofs for admin - aiStatus: {}, page: {}, size: {}", aiStatus, page, size);
+		Pageable pageable = PageRequest.of(page, size,
+				Sort.by(Sort.Direction.ASC, "aiStatus")
+						.and(Sort.by(Sort.Direction.DESC, "createdAt")));
+		if (aiStatus != null) {
+			return proofRepository.findByAiStatus(aiStatus, pageable)
+					.map(this::toProofResponse);
+		}
+		return proofRepository.findAll(pageable)
+				.map(this::toProofResponse);
 	}
 }
