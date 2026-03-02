@@ -59,8 +59,8 @@ export const WithdrawalService = {
    */
   getWithdrawals: async (
     params: WithdrawalFilterParams = {}
-  ): Promise<PaginatedResponse<Withdrawal>> => {
-    const response = await apiClient.get<PaginatedResponse<Withdrawal>>("/withdrawals", {
+  ): Promise<{ result: Withdrawal[] }> => {
+    const response = await apiClient.get<{ result: Withdrawal[] }>("/core/withdrawals", {
       params,
     });
     return response.data;
@@ -71,7 +71,7 @@ export const WithdrawalService = {
    * @param id - ID của withdrawal
    */
   getWithdrawalById: async (id: string): Promise<Withdrawal> => {
-    const response = await apiClient.get<Withdrawal>(`/withdrawals/${id}`);
+    const response = await apiClient.get<Withdrawal>(`/core/withdrawals/${id}`);
     return response.data;
   },
 
@@ -80,7 +80,7 @@ export const WithdrawalService = {
    * @param data - Dữ liệu yêu cầu rút tiền
    */
   createWithdrawal: async (data: CreateWithdrawalRequest): Promise<Withdrawal> => {
-    const response = await apiClient.post<Withdrawal>("/withdrawals", data);
+    const response = await apiClient.post<Withdrawal>("/core/withdrawals", data);
     return response.data;
   },
 

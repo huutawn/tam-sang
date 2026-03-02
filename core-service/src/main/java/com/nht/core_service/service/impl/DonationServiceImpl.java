@@ -74,7 +74,7 @@ public class DonationServiceImpl implements DonationService {
 		BigDecimal remaining = campaign.getTargetAmount().subtract(campaign.getCurrentAmount());
 		BigDecimal amount = request.amount();
 		if (request.amount().compareTo(remaining) > 0) {
-			amount=remaining;
+			amount = remaining;
 		}
 		String paymentCode = generatePaymentCode();
 
@@ -93,23 +93,24 @@ public class DonationServiceImpl implements DonationService {
 		log.info("Donation initialized: id={}, paymentCode={}", savedDonation.getId(), paymentCode);
 
 		// Generate VietQR URL
-		String url=generateQRCodeUrl(amount,paymentCode,campaign.getTitle());
+		String url = generateQRCodeUrl(amount, paymentCode, campaign.getTitle());
 		return url;
 	}
-
-
 
 	@Override
 	@Transactional
 	public void processPaymentWebhook(PaymentWebhookRequest request) {
-		String content =request.content();
-		Pattern pattern = Pattern.compile("\\. (TS\\d{13}[A-Z0-9]{6}) \\.");
+		String content = request.content();
+		// Extract payment code which starts with 'TS' followed by 13 digits and 6
+		// uppercase alphanumeric chars
+		Pattern pattern = Pattern.compile("(TS\\d{13}[A-Z0-9]{6})");
 		Matcher matcher = pattern.matcher(content);
-		if(matcher.find()){
-			content=matcher.group(1);
-		}
-		else{
-			throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+		if (matcher.find()) {
+			content = matcher.group(1);
+		} else {
+			log.error("Payment code not found in content: {}", content);
+			throw new AppException(ErrorCode.INSUFFICIENT_BALANCE); // Using existing error code as per original logic,
+																	// though INVALID_PAYMENT_CODE might be better
 		}
 		// Find donation by payment code
 		Donation donation = donationRepository
@@ -131,7 +132,6 @@ public class DonationServiceImpl implements DonationService {
 			return;
 		}
 
-
 		// Publish event to Kafka (with donationId as key for tracing)
 		DonationEvent event = new DonationEvent(donation.getId(),
 				donation.getCampaignId(), donation.getAmount(), donation.getDonorFullName(), donation.getContent());
@@ -143,7 +143,7 @@ public class DonationServiceImpl implements DonationService {
 	@Override
 	@Transactional
 	public void completeDonation(DonationCompleteRequest request) {
-		log.info("Completing donation from blockchain callback: donationId={}, campaignId={}", 
+		log.info("Completing donation from blockchain callback: donationId={}, campaignId={}",
 				request.donationId(), request.campaignId());
 
 		// Idempotency check
@@ -234,7 +234,7 @@ public class DonationServiceImpl implements DonationService {
 			log.error("Failed to send live donation feed update for donationId={}", request.donationId(), e);
 		}
 
-		log.info("Donation completed successfully: donationId={}, txHash={}", 
+		log.info("Donation completed successfully: donationId={}, txHash={}",
 				request.donationId(), request.transactionHash());
 	}
 
@@ -270,7 +270,7 @@ public class DonationServiceImpl implements DonationService {
 	private String generateQRCodeUrl(BigDecimal amount, String paymentCode, String campaignTitle) {
 		// VietQR format: bankId, accountNo, amount, description
 		// https://img.vietqr.io/image/{bankId}-{accountNo}-{template}.png?amount={amount}&addInfo={description}
-		String description = paymentCode + " " + campaignTitle;
+		String description = paymentCode;
 		String encodedDescription = description.replace(" ", "%20");
 
 		return String.format(
@@ -278,4 +278,3 @@ public class DonationServiceImpl implements DonationService {
 				BANK_ID, ACCOUNT_NO, amount.longValue(), encodedDescription);
 	}
 }
-

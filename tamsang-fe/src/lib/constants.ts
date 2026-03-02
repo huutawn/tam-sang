@@ -46,6 +46,7 @@ export const API_ENDPOINTS = {
   // Donations
   DONATIONS: {
     RECENT: "/core/donations/recent",
+    INIT: "/core/donations/init",
   },
   // KYC
   KYC: {

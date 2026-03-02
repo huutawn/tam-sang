@@ -15,6 +15,13 @@ interface ApiResponse<T> {
   result: T;
 }
 
+export interface InitDonationRequest {
+  campaignId: string;
+  amount: number;
+  donorName: string;
+  message?: string;
+}
+
 export const DonationService = {
   /**
    * Lấy 10 quyên góp hoàn thành mới nhất (Public endpoint)
@@ -22,6 +29,17 @@ export const DonationService = {
   getRecentDonations: async (): Promise<LiveDonation[]> => {
     const response = await apiClient.get<ApiResponse<LiveDonation[]>>(
       API_ENDPOINTS.DONATIONS.RECENT
+    );
+    return response.data.result;
+  },
+
+  /**
+   * Khởi tạo quyên góp
+   */
+  initDonation: async (data: InitDonationRequest): Promise<string> => {
+    const response = await apiClient.post<ApiResponse<string>>(
+      API_ENDPOINTS.DONATIONS.INIT,
+      data
     );
     return response.data.result;
   },

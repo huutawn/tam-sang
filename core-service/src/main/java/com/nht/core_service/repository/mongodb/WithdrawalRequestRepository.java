@@ -18,6 +18,10 @@ public interface WithdrawalRequestRepository extends MongoRepository<WithdrawalR
 
 	List<WithdrawalRequest> findByCampaignIdOrderByCreatedAtDesc(String campaignId);
 
+	Page<WithdrawalRequest> findByCampaignIdAndStatus(String campaignId, WithdrawalStatus status, Pageable pageable);
+
+	Page<WithdrawalRequest> findByCampaignId(String campaignId, Pageable pageable);
+
 	Page<WithdrawalRequest> findByStatus(WithdrawalStatus status, Pageable pageable);
 
 	Page<WithdrawalRequest> findAll(Pageable pageable);

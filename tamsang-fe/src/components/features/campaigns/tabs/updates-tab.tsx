@@ -19,7 +19,7 @@ interface UpdatesTabProps {
 
 export function UpdatesTab({ campaign }: UpdatesTabProps) {
     const { data: withdrawalsData, isLoading } = useCampaignWithdrawals(campaign.id);
-    const withdrawals = withdrawalsData?.data ?? [];
+    const withdrawals = withdrawalsData?.result ?? [];
 
     // Only show approved/completed withdrawals as "updates"
     const updates = withdrawals.filter(

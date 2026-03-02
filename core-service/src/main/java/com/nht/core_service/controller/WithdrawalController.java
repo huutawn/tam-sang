@@ -12,7 +12,7 @@ import com.nht.core_service.dto.response.WithdrawalRequestResponse;
 import com.nht.core_service.enums.FaceVerificationStatus;
 import com.nht.core_service.enums.WithdrawalStatus;
 import com.nht.core_service.service.WithdrawalRequestService;
-
+import java.util.List;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,19 +44,13 @@ public class WithdrawalController {
 	}
 	
 	@GetMapping
-	public ResponseEntity<ApiResponse<Page<WithdrawalRequestResponse>>> getWithdrawals(
-		@RequestParam(required = false) WithdrawalStatus status,
-		@RequestParam(defaultValue = "0") int page,
-		@RequestParam(defaultValue = "10") int size
+	public ResponseEntity<ApiResponse<List<WithdrawalRequestResponse>>> getWithdrawalsByCampaignId(
+		@RequestParam(required = true) String campaignId,
+		@RequestParam(required = false) String status
 	) {
-		log.info("Getting withdrawals - status: {}, page: {}, size: {}", status, page, size);
+		log.info("Getting withdrawals - campaignId: {}, status: {}", campaignId, status);
 		
-		Page<WithdrawalRequestResponse> withdrawals;
-		if (status != null) {
-			withdrawals = withdrawalRequestService.getWithdrawalsByStatus(status, page, size);
-		} else {
-			withdrawals = withdrawalRequestService.getAllWithdrawals(page, size);
-		}
+		List<WithdrawalRequestResponse> withdrawals = withdrawalRequestService.getWithdrawalsByCampaignId(campaignId, status);
 		
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawals retrieved successfully", withdrawals));
 	}

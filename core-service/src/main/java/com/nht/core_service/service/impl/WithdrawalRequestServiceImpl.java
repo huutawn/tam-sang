@@ -109,8 +109,12 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
     }
 
     @Override
-    public List<WithdrawalRequestResponse> getWithdrawalRequestsByCampaignId(String campaignId) {
-        List<WithdrawalRequest> withdrawalRequests = withdrawalRequestRepository.findByCampaignIdAndStatus(campaignId, WithdrawalStatus.APPROVED);
+    public List<WithdrawalRequestResponse> getWithdrawalsByCampaignId(String campaignId, String status) {
+        if (status == null) {
+            List<WithdrawalRequest> withdrawalRequests = withdrawalRequestRepository.findByCampaignIdOrderByCreatedAtDesc(campaignId);
+            return withdrawalRequests.stream().map(this::toWithdrawalRequestResponse).toList();
+        }
+        List<WithdrawalRequest> withdrawalRequests = withdrawalRequestRepository.findByCampaignIdAndStatus(campaignId, WithdrawalStatus.valueOf(status));
         return withdrawalRequests.stream().map(this::toWithdrawalRequestResponse).toList();
     }
 

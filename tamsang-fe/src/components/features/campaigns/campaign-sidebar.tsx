@@ -6,6 +6,9 @@ import { useRecentDonations } from "@/hooks/use-donations";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 
+import { DonationModal } from "./donation-modal";
+import { useState } from "react";
+
 function formatVND(amount: number) {
     return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
 }
@@ -32,6 +35,7 @@ interface CampaignSidebarProps {
 }
 
 export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
+    const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
     const { data: recentDonations } = useRecentDonations();
     const progress = Math.min((campaign.currentAmount / campaign.targetAmount) * 100, 100);
     const daysLeft = getDaysLeft(campaign.endDate);
@@ -67,7 +71,10 @@ export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
 
                 {/* CTA Buttons */}
                 <div className="space-y-3">
-                    <Button className="w-full py-6 text-base font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl shadow-lg">
+                    <Button
+                        onClick={() => setIsDonationModalOpen(true)}
+                        className="w-full py-6 text-base font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl shadow-lg"
+                    >
                         Quyên Góp Ngay
                     </Button>
                     <Button variant="outline" className="w-full py-5 rounded-xl gap-2 border-border">
@@ -75,6 +82,14 @@ export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
                         Chia Sẻ Chiến Dịch
                     </Button>
                 </div>
+
+                {/* Donation Modal */}
+                <DonationModal
+                    isOpen={isDonationModalOpen}
+                    onClose={() => setIsDonationModalOpen(false)}
+                    campaignId={campaign.id}
+                    campaignTitle={campaign.title}
+                />
 
                 {/* Trust badges */}
                 <div className="space-y-3 pt-2">

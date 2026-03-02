@@ -28,7 +28,7 @@ public class SecurityConfig {
         // Actuator health checks
         "/actuator/health/**",
         "/actuator/info",
-        
+        "/webhook/**",
         // Public campaign browsing (read-only)
         "/campaigns",
         "/campaigns/*",

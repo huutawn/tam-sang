@@ -13,7 +13,7 @@ import java.util.List;
 public interface WithdrawalRequestService {
     WithdrawalRequestResponse createWithdrawalRequest(CreateWithdrawalRequest request);
     WithdrawalRequestResponse getWithdrawalRequestById(String id);
-    List<WithdrawalRequestResponse> getWithdrawalRequestsByCampaignId(String campaignId);
+    List<WithdrawalRequestResponse> getWithdrawalsByCampaignId(String campaignId, String status);
     void changeWithdrawalRequestStatus(String id);
     
     // Pagination and filtering
