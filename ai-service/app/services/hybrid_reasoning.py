@@ -45,6 +45,7 @@ class HybridReasoningService:
        - Analyze bill images (listBillImageUrl)
        - Extract amounts, items, verify prices
        - Check alignment with campaign_goal
+       - Powered by Gemini 2.5 Flash
        
     3. Combine Results:
        - Compute weighted trust score
