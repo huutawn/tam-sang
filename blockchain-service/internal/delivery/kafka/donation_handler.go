@@ -62,12 +62,11 @@ func (h *DonationHandler) HandleDonationEvent(ctx context.Context, eventType str
 		)
 		return fmt.Errorf("invalid donationId UUID: %w", err)
 	}
-	if _, err := uuid.Parse(event.CampaignID); err != nil {
-		logger.Error("Invalid campaignId UUID format",
+	if len(event.CampaignID) != 24 {
+		logger.Error("Invalid campaignId format, expected 24 chars",
 			zap.String("campaign_id", event.CampaignID),
-			zap.Error(err),
 		)
-		return fmt.Errorf("invalid campaignId UUID: %w", err)
+		return fmt.Errorf("invalid campaignId format")
 	}
 
 	// Convert amount from json.Number to float64 (preserves BigDecimal precision during transport)

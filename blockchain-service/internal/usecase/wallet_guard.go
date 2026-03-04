@@ -101,7 +101,7 @@ func (w *WalletGuard) CreateWallet(ctx context.Context, req *domain.WalletCreate
 
 	// Create wallet entity - NOTE: No Balance field, calculated from chain
 	wallet := &domain.Wallet{
-		ID:                  uuid.New().String(),
+		ID:                  campaignID,
 		CampaignID:          campaignID,
 		EncryptedPrivateKey: encryptedPrivateKey,
 		PublicKey:           publicKey,
@@ -151,16 +151,18 @@ func (w *WalletGuard) GetWallet(ctx context.Context, walletID string) (*domain.W
 	}
 
 	return &domain.WalletResponse{
-		ID:             wallet.ID,
-		CampaignID:     wallet.CampaignID,
-		Address:        wallet.Address,
-		PublicKey:      wallet.PublicKey,
-		Balance:        wallet.Balance,
-		Currency:       wallet.Currency,
-		Status:         wallet.Status,
-		IsVerified:     wallet.IsVerified,
-		LastVerifiedAt: wallet.LastVerifiedAt,
-		CreatedAt:      wallet.CreatedAt,
+		ID:               wallet.ID,
+		CampaignID:       wallet.CampaignID,
+		Address:          wallet.Address,
+		PublicKey:        wallet.PublicKey,
+		Balance:          wallet.Balance,
+		TotalDeposits:    wallet.TotalDeposits,
+		TotalWithdrawals: wallet.TotalWithdrawals,
+		Currency:         wallet.Currency,
+		Status:           wallet.Status,
+		IsVerified:       wallet.IsVerified,
+		LastVerifiedAt:   wallet.LastVerifiedAt,
+		CreatedAt:        wallet.CreatedAt,
 	}, nil
 }
 
@@ -177,16 +179,18 @@ func (w *WalletGuard) GetWalletByCampaign(ctx context.Context, campaignID string
 	}
 
 	return &domain.WalletResponse{
-		ID:             wallet.ID,
-		CampaignID:     wallet.CampaignID,
-		Address:        wallet.Address,
-		PublicKey:      wallet.PublicKey,
-		Balance:        wallet.Balance,
-		Currency:       wallet.Currency,
-		Status:         wallet.Status,
-		IsVerified:     wallet.IsVerified,
-		LastVerifiedAt: wallet.LastVerifiedAt,
-		CreatedAt:      wallet.CreatedAt,
+		ID:               wallet.ID,
+		CampaignID:       wallet.CampaignID,
+		Address:          wallet.Address,
+		PublicKey:        wallet.PublicKey,
+		Balance:          wallet.Balance,
+		TotalDeposits:    wallet.TotalDeposits,
+		TotalWithdrawals: wallet.TotalWithdrawals,
+		Currency:         wallet.Currency,
+		Status:           wallet.Status,
+		IsVerified:       wallet.IsVerified,
+		LastVerifiedAt:   wallet.LastVerifiedAt,
+		CreatedAt:        wallet.CreatedAt,
 	}, nil
 }
 

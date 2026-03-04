@@ -112,7 +112,7 @@ func (c *CoreServiceClient) doCompleteDonation(ctx context.Context, req *Donatio
 		return fmt.Errorf("failed to discover core-service: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/donations/complete", baseURL)
+	url := fmt.Sprintf("%s/core/donations/complete", baseURL)
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {
