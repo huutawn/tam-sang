@@ -127,7 +127,7 @@ class FaceVerificationService:
             
         except ValueError as e:
             error_msg = str(e)
-            logger.warning(f"Face verification failed: {error_msg}")
+            logger.warning(f"Face verification failed with ValueError: {error_msg}")
             
             if "Face could not be detected" in error_msg or "no face" in error_msg.lower():
                 return {
@@ -147,13 +147,25 @@ class FaceVerificationService:
                 }
                 
         except Exception as e:
-            logger.error(f"Error in face verification: {e}", exc_info=True)
+            error_msg = str(e)
+            logger.error(f"Error in face verification: {error_msg}", exc_info=True)
+            
+            # DeepFace sometimes throws generic Exceptions for face detection failures
+            if "Exception while processing img1_path" in error_msg or "Exception while processing img2_path" in error_msg:
+                return {
+                    "verified": False,
+                    "distance": 1.0,
+                    "threshold": 0.5,
+                    "score": 0,
+                    "details": "Không thể nhận diện khuôn mặt rõ ràng trong ảnh selfie hoặc CMND/CCCD. Vui lòng đảm bảo ánh sáng tốt và không bị che khuất."
+                }
+                
             return {
                 "verified": False,
                 "distance": 1.0,
                 "threshold": 0.5,
                 "score": 0,
-                "details": f"Lỗi hệ thống khi verify khuôn mặt: {str(e)}"
+                "details": f"Lỗi hệ thống khi verify khuôn mặt: {error_msg}"
             }
             
         finally:

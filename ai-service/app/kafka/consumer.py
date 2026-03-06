@@ -460,17 +460,30 @@ class KycKafkaConsumer:
                 logger.error("Failed to send error callback: %s", cb_err)
 
     async def _resolve_kyc_image_url(self, user_id: str) -> Optional[str]:
-        """Resolve KYC front image URL from identity-service."""
+        """Resolve KYC front image URL from identity-service via API Gateway."""
         import httpx
+        
         try:
-            url = f"{settings.core_service_url}/identity-service/kyc/user/{user_id}"
+            url = f"{settings.core_service_url}/api/identity/kyc/user/{user_id}"
+            logger.info("Trying to resolve KYC image from: %s", url)
+            
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(url)
+                logger.info("KYC resolve response: status=%d", resp.status_code)
+                
                 if resp.status_code == 200:
                     data = resp.json()
-                    return data.get("result", {}).get("frontImageUrl")
+                    front_image_url = data.get("result", {}).get("frontImageUrl")
+                    if front_image_url:
+                        logger.info("Resolved KYC front image URL: %s", front_image_url)
+                        return front_image_url
+                    else:
+                        logger.warning("KYC response has no frontImageUrl: %s", data)
+                else:
+                    logger.warning("KYC resolve failed with status %d: %s", resp.status_code, resp.text[:200])
         except Exception as e:
             logger.error("Failed to resolve KYC image for user %s: %s", user_id, e)
+            
         return None
 
     async def _send_face_verification_callback(
@@ -478,7 +491,6 @@ class KycKafkaConsumer:
     ) -> bool:
         """Send face verification result to Core-service via HTTP callback."""
         import httpx
-        callback_url = f"{settings.core_service_url}/core-service{settings.face_verification_callback_endpoint}"
         
         payload = FaceVerificationResult(
             withdrawal_id=withdrawal_id,
@@ -488,6 +500,7 @@ class KycKafkaConsumer:
             analysis_log=analysis_log
         )
 
+        callback_url = f"{settings.core_service_url}/api/core{settings.face_verification_callback_endpoint}"
         logger.info("Sending face verification callback to %s for withdrawal %s", callback_url, withdrawal_id)
 
         for attempt in range(settings.callback_retry_count):

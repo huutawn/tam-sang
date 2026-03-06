@@ -1,14 +1,18 @@
 "use client";
 
-import { Heart, Share2, ShieldCheck, Link as LinkIcon, CheckCircle } from "lucide-react";
+import { Heart, Share2, ShieldCheck, Link as LinkIcon, CheckCircle, Wallet, FileCheck } from "lucide-react";
 import { CampaignDetailResponse } from "@/services/campaign.service";
 import { useCampaignWallet } from "@/hooks/use-blockchain";
 import { useRecentDonations } from "@/hooks/use-donations";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/auth-store";
 
 import { DonationModal } from "./donation-modal";
-import { useState } from "react";
+import { WithdrawalModal } from "./withdrawal-modal";
+import { ProofUploadModal } from "./proof-upload-modal";
+import { useState, useEffect } from "react";
+import { WithdrawalService, Withdrawal } from "@/services/withdrawal.service";
 
 function formatVND(amount: number) {
     return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
@@ -37,8 +41,15 @@ interface CampaignSidebarProps {
 
 export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
     const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
+    const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+    const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+    const [waitingProofWithdrawal, setWaitingProofWithdrawal] = useState<Withdrawal | null>(null);
+
     const { data: recentDonations } = useRecentDonations();
     const { data: wallet } = useCampaignWallet(campaign.id);
+    const user = useAuthStore((s) => s.user);
+
+    const isOwner = user?.sub === campaign.ownerId;
 
     // Always prefer the blockchain verified total deposits over MongoDB cache
     const currentAmount = wallet?.total_deposits ?? campaign.currentAmount;
@@ -49,6 +60,19 @@ export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
 
     // Filter recent donations (show max 5)
     const donors = (recentDonations ?? []).slice(0, 5);
+
+    // Fetch withdrawal awaiting proof (for proof upload button)
+    useEffect(() => {
+        if (!isOwner) return;
+        WithdrawalService.getWithdrawals({ campaignId: campaign.id })
+            .then((withdrawals) => {
+                const waiting = withdrawals.find(
+                    (w) => w.status === "APPROVED" || w.status === "WAITING_PROOF"
+                );
+                setWaitingProofWithdrawal(waiting ?? null);
+            })
+            .catch(() => setWaitingProofWithdrawal(null));
+    }, [isOwner, campaign.id, isWithdrawalModalOpen, isProofModalOpen]);
 
     return (
         <div className="sticky top-6 space-y-6">
@@ -89,13 +113,57 @@ export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
                     </Button>
                 </div>
 
-                {/* Donation Modal */}
+                {/* Owner Management Buttons */}
+                {isOwner && (
+                    <div className="space-y-2 pt-1 border-t border-dashed border-gray-200">
+                        <p className="text-xs text-muted-foreground font-medium pt-2">Quản lý chiến dịch</p>
+                        <Button
+                            onClick={() => setIsWithdrawalModalOpen(true)}
+                            variant="outline"
+                            className="w-full py-5 rounded-xl gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300"
+                        >
+                            <Wallet className="h-4 w-4" />
+                            Yêu cầu rút tiền
+                        </Button>
+                        {waitingProofWithdrawal && (
+                            <Button
+                                onClick={() => setIsProofModalOpen(true)}
+                                variant="outline"
+                                className="w-full py-5 rounded-xl gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300"
+                            >
+                                <FileCheck className="h-4 w-4" />
+                                Cập nhật bằng chứng
+                            </Button>
+                        )}
+                    </div>
+                )}
+
+                {/* Modals */}
                 <DonationModal
                     isOpen={isDonationModalOpen}
                     onClose={() => setIsDonationModalOpen(false)}
                     campaignId={campaign.id}
                     campaignTitle={campaign.title}
                 />
+
+                {isOwner && (
+                    <>
+                        <WithdrawalModal
+                            isOpen={isWithdrawalModalOpen}
+                            onClose={() => setIsWithdrawalModalOpen(false)}
+                            campaignId={campaign.id}
+                            campaignTitle={campaign.title}
+                        />
+                        {waitingProofWithdrawal && (
+                            <ProofUploadModal
+                                isOpen={isProofModalOpen}
+                                onClose={() => setIsProofModalOpen(false)}
+                                withdrawalRequestId={waitingProofWithdrawal.id}
+                                campaignTitle={campaign.title}
+                            />
+                        )}
+                    </>
+                )}
 
                 {/* Trust badges */}
                 <div className="space-y-3 pt-2">

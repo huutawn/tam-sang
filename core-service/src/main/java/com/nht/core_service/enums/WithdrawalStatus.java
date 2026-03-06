@@ -6,5 +6,6 @@ public enum WithdrawalStatus {
 	REJECTED,
 	WAITING_PROOF,
 	PROCESSING,
-	COMPLETED
+	COMPLETED,
+	CANCELLED
 }

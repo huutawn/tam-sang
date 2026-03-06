@@ -1,22 +1,23 @@
 from pydantic import BaseModel
-from typing import Literal
+from typing import List, Literal, Optional
 from datetime import datetime
 
 
 class ProofVerificationRequest(BaseModel):
     """
-    Event để request verification cho proof (hóa đơn)
+    Event để request verification cho proof (hóa đơn + ảnh hiện trường)
     
     Attributes:
         proofId: ID của proof cần verify
-        imageUrl: URL của ảnh proof
-        type: Loại proof - INVOICE (hóa đơn)
+        billImageUrls: Danh sách URL ảnh hóa đơn
+        sceneImageUrls: Danh sách URL ảnh hiện trường
         context: Context data:
-            - INVOICE: {"campaignContext": "...", "withdrawalReason": "..."}
+            - campaignContext: mô tả chiến dịch
+            - withdrawalReason: lý do rút tiền
     """
     proofId: str
-    imageUrl: str
-    type: Literal["INVOICE"]
+    billImageUrls: List[str] = []
+    sceneImageUrls: List[str] = []
     context: dict
     timestamp: datetime = None
     

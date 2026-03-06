@@ -1,6 +1,7 @@
 package com.nht.core_service.document;
 
 import java.time.Instant;
+import java.util.List;
 
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -28,7 +29,8 @@ public class Proof {
 	@Indexed
 	private String withdrawalRequestId;
 
-	private String imageUrl;  // URL from File Service
+	private List<String> billImageUrls; // URL ảnh hóa đơn từ File Service
+	private List<String> sceneImageUrls; // URL ảnh hiện trường từ File Service
 
 	private String description;
 
@@ -37,9 +39,9 @@ public class Proof {
 	@Builder.Default
 	private AiStatus aiStatus = AiStatus.PROCESSING;
 
-	private Integer aiScore;  // 0-100
+	private Integer aiScore; // 0-100
 
-	private String aiAnalysis;  // JSON string from AI Service
+	private String aiAnalysis; // JSON string from AI Service
 
 	@CreatedDate
 	private Instant createdAt;

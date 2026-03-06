@@ -19,7 +19,7 @@ interface UpdatesTabProps {
 
 export function UpdatesTab({ campaign }: UpdatesTabProps) {
     const { data: withdrawalsData, isLoading } = useCampaignWithdrawals(campaign.id);
-    const withdrawals = withdrawalsData?.result ?? [];
+    const withdrawals = withdrawalsData ?? [];
 
     // Only show approved/completed withdrawals as "updates"
     const updates = withdrawals.filter(
@@ -76,7 +76,7 @@ function UpdateCard({ withdrawal }: { withdrawal: Withdrawal }) {
                         {ownerInitial}
                     </div>
                     <div>
-                        <h3 className="font-semibold text-foreground">{withdrawal.purpose}</h3>
+                        <h3 className="font-semibold text-foreground">{withdrawal.reason}</h3>
                         <p className="text-xs text-muted-foreground">
                             Người tổ chức • {formatDate(withdrawal.createdAt)}
                         </p>
@@ -92,29 +92,24 @@ function UpdateCard({ withdrawal }: { withdrawal: Withdrawal }) {
                         {new Intl.NumberFormat("vi-VN").format(withdrawal.amount)}₫
                     </span>
                 </p>
-                {withdrawal.bankName && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Ngân hàng: {withdrawal.bankName} • STK: {withdrawal.bankAccountNumber}
-                    </p>
-                )}
+
             </div>
 
             {/* Proof images */}
             {proofs && proofs.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                    {proofs.map((proof, i) => (
-                        <div key={proof.id} className="aspect-video rounded-xl overflow-hidden bg-muted border border-border">
-                            <img
-                                src={proof.fileUrl}
-                                alt={proof.description || `Bằng chứng ${i + 1}`}
-                                className="h-full w-full object-cover"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = "";
-                                    (e.target as HTMLImageElement).alt = "Không tải được ảnh";
-                                }}
-                            />
-                        </div>
-                    ))}
+                    {proofs.flatMap((proof) => [
+                        ...(proof.sceneImageUrls ?? []).map((url, i) => (
+                            <div key={`${proof.id}-scene-${i}`} className="aspect-video rounded-xl overflow-hidden bg-muted border border-border">
+                                <img src={url} alt={`Ảnh hiện trường ${i + 1}`} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            </div>
+                        )),
+                        ...(proof.billImageUrls ?? []).map((url, i) => (
+                            <div key={`${proof.id}-bill-${i}`} className="aspect-video rounded-xl overflow-hidden bg-muted border border-border">
+                                <img src={url} alt={`Hóa đơn ${i + 1}`} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            </div>
+                        )),
+                    ])}
                 </div>
             )}
 
@@ -130,7 +125,7 @@ function UpdateCard({ withdrawal }: { withdrawal: Withdrawal }) {
             )}
 
             {/* AI verification status */}
-            {proofs && proofs.some(p => p.status === "VERIFIED") && (
+            {proofs && proofs.some(p => p.aiStatus === "VERIFIED") && (
                 <div className="mb-4 flex items-center gap-2 text-xs text-emerald-600">
                     <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white">✓</span>
                     Bằng chứng đã được AI xác minh
