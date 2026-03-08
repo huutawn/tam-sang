@@ -1,6 +1,7 @@
 package com.nht.core_service.service.impl;
 
 import com.mongodb.client.result.UpdateResult;
+import com.nht.core_service.config.KafkaTopicConfig;
 import com.nht.core_service.document.Campaign;
 import com.nht.core_service.document.WithdrawalRequest;
 import com.nht.core_service.dto.request.CreateWithdrawalRequest;
@@ -25,10 +26,12 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +41,7 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
     private final CampaignRepository campaignRepository;
     private final MongoTemplate mongoTemplate;
     private final FaceVerificationProducer faceVerificationProducer;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
     @Transactional
@@ -191,6 +195,20 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
         withdrawalRequest.setStatus(WithdrawalStatus.WAITING_PROOF);
         WithdrawalRequest saved = withdrawalRequestRepository.save(withdrawalRequest);
 
+        // Publish withdrawal event to blockchain-service
+        try {
+            Map<String, Object> event = Map.of(
+                    "withdrawalId", id,
+                    "campaignId", withdrawalRequest.getCampaignId(),
+                    "amount", withdrawalRequest.getAmount(),
+                    "reason", withdrawalRequest.getReason() != null ? withdrawalRequest.getReason() : "",
+                    "type", withdrawalRequest.getType().name());
+            kafkaTemplate.send(KafkaTopicConfig.WITHDRAWAL_EVENTS_TOPIC, id, event);
+            log.info("Published withdrawal event to Kafka: withdrawalId={}", id);
+        } catch (Exception e) {
+            log.error("Failed to publish withdrawal event to Kafka for withdrawalId={}", id, e);
+        }
+
         log.info("Withdrawal request approved and set to WAITING_PROOF: {}", id);
 
         return toWithdrawalRequestResponse(saved);
@@ -237,5 +255,25 @@ public class WithdrawalRequestServiceImpl implements WithdrawalRequestService {
         withdrawalRequestRepository.save(withdrawalRequest);
         log.info("Face verification updated for withdrawal: {} -> status: {}, score: {}",
                 request.withdrawalId(), faceStatus, request.score());
+    }
+
+    @Override
+    public void completeWithdrawalTransaction(com.nht.core_service.dto.request.WithdrawalCompleteRequest request) {
+        log.info("Completing withdrawal from blockchain callback for withdrawalId: {}", request.withdrawalId());
+
+        WithdrawalRequest withdrawalRequest = withdrawalRequestRepository.findById(request.withdrawalId())
+                .orElseThrow(() -> new AppException(ErrorCode.WITHDRAWAL_NOT_FOUND));
+
+        // Update campaign usedAmount atomically
+        try {
+            Query query = new Query(Criteria.where("id").is(withdrawalRequest.getCampaignId()));
+            Update update = new Update().inc("usedAmount", request.amount().doubleValue());
+            mongoTemplate.updateFirst(query, update, Campaign.class);
+            log.info("Updated campaign usedAmount from blockchain callback: campaignId={}, amount={}",
+                    withdrawalRequest.getCampaignId(), request.amount());
+        } catch (Exception e) {
+            log.error("Failed to update campaign usedAmount from callback for campaignId={}",
+                    withdrawalRequest.getCampaignId(), e);
+        }
     }
 }

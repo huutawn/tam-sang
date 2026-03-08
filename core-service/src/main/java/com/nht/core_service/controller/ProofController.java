@@ -1,15 +1,11 @@
 package com.nht.core_service.controller;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.nht.core_service.dto.request.HybridReasoningCallbackRequest;
 import com.nht.core_service.dto.response.ApiResponse;
@@ -29,35 +25,19 @@ public class ProofController {
 
 	private final ProofService proofService;
 
-	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<ApiResponse<ProofResponse>> uploadProof(
-			@RequestParam String withdrawalRequestId,
-			@RequestParam(required = false) List<MultipartFile> billImages,
-			@RequestParam(required = false) List<MultipartFile> sceneImages,
-			@RequestParam(required = false) String description) {
+			@Valid @RequestBody com.nht.core_service.dto.request.ProofUploadRequest request) {
 		log.info("Uploading proof for withdrawal: {}, billImages: {}, sceneImages: {}",
-				withdrawalRequestId,
-				billImages != null ? billImages.size() : 0,
-				sceneImages != null ? sceneImages.size() : 0);
+				request.getWithdrawalRequestId(),
+				request.getBillImageUrls() != null ? request.getBillImageUrls().size() : 0,
+				request.getSceneImageUrls() != null ? request.getSceneImageUrls().size() : 0);
 
-		// TODO: Upload files to File Service and get URLs
-		// For now, simulate with placeholder URLs
-		List<String> billImageUrls = new ArrayList<>();
-		if (billImages != null) {
-			for (MultipartFile file : billImages) {
-				billImageUrls.add("https://file-service/uploads/bills/" + file.getOriginalFilename());
-			}
-		}
-
-		List<String> sceneImageUrls = new ArrayList<>();
-		if (sceneImages != null) {
-			for (MultipartFile file : sceneImages) {
-				sceneImageUrls.add("https://file-service/uploads/scenes/" + file.getOriginalFilename());
-			}
-		}
-
-		ProofResponse response = proofService.uploadProof(withdrawalRequestId, billImageUrls, sceneImageUrls,
-				description);
+		ProofResponse response = proofService.uploadProof(
+				request.getWithdrawalRequestId(),
+				request.getBillImageUrls(),
+				request.getSceneImageUrls(),
+				request.getDescription());
 
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Proof uploaded successfully", response));
 	}
@@ -117,5 +97,39 @@ public class ProofController {
 			return ResponseEntity.internalServerError()
 					.body(new ApiResponse<>(5000, "Failed to process callback: " + e.getMessage(), null));
 		}
+	}
+
+	@PutMapping("/admin/{id}/approve")
+	public ResponseEntity<ApiResponse<ProofResponse>> approveProof(@PathVariable String id) {
+		log.info("Admin approving proof: {}", id);
+		ProofResponse response = proofService.approveProof(id);
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Proof approved successfully", response));
+	}
+
+	@PutMapping("/admin/{id}/reject")
+	public ResponseEntity<ApiResponse<ProofResponse>> rejectProof(@PathVariable String id) {
+		log.info("Admin rejecting proof: {}", id);
+		ProofResponse response = proofService.rejectProof(id);
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Proof rejected successfully", response));
+	}
+
+	@PutMapping("/{id}/upvote")
+	public ResponseEntity<ApiResponse<ProofResponse>> upvoteProof(
+			@PathVariable String id,
+			org.springframework.security.core.Authentication authentication) {
+		String userId = authentication.getName();
+		log.info("User {} upvoting proof {}", userId, id);
+		ProofResponse response = proofService.upvoteProof(id, userId);
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Proof upvoted successfully", response));
+	}
+
+	@PutMapping("/{id}/report")
+	public ResponseEntity<ApiResponse<ProofResponse>> reportProof(
+			@PathVariable String id,
+			org.springframework.security.core.Authentication authentication) {
+		String userId = authentication.getName();
+		log.info("User {} reporting proof {}", userId, id);
+		ProofResponse response = proofService.reportProof(id, userId);
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Proof reported successfully", response));
 	}
 }

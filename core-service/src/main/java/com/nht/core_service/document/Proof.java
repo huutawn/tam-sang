@@ -43,6 +43,16 @@ public class Proof {
 
 	private String aiAnalysis; // JSON string from AI Service
 
+	// Community Review Fields
+	@Builder.Default
+	private Integer upvoteCount = 0;
+
+	@Builder.Default
+	private Integer reportCount = 0;
+
+	private List<String> upvoterIds;
+	private List<String> reporterIds;
+
 	@CreatedDate
 	private Instant createdAt;
 

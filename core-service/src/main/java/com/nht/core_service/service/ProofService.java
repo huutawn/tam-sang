@@ -24,4 +24,12 @@ public interface ProofService {
 
 	// Admin: paginated proofs with optional aiStatus filter
 	Page<ProofResponse> getProofsForAdmin(AiStatus aiStatus, int page, int size);
+
+	ProofResponse approveProof(String id);
+
+	ProofResponse rejectProof(String id);
+
+	ProofResponse upvoteProof(String id, String userId);
+
+	ProofResponse reportProof(String id, String userId);
 }

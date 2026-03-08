@@ -225,6 +225,8 @@ public class ProofServiceImpl implements ProofService {
 				proof.getAiStatus(),
 				proof.getAiScore(),
 				proof.getAiAnalysis(),
+				proof.getUpvoteCount(),
+				proof.getReportCount(),
 				proof.getCreatedAt());
 	}
 
@@ -240,5 +242,82 @@ public class ProofServiceImpl implements ProofService {
 		}
 		return proofRepository.findAll(pageable)
 				.map(this::toProofResponse);
+	}
+
+	@Override
+	public ProofResponse approveProof(String id) {
+		log.info("Admin manually approving proof: {}", id);
+		Proof proof = proofRepository.findById(id)
+				.orElseThrow(() -> new AppException(ErrorCode.PROOF_NOT_FOUND));
+
+		proof.setAiStatus(AiStatus.VERIFIED);
+		Proof savedProof = proofRepository.save(proof);
+
+		WithdrawalRequest withdrawalRequest = withdrawalRequestRepository.findById(proof.getWithdrawalRequestId())
+				.orElse(null);
+		if (withdrawalRequest != null && withdrawalRequest.getStatus() == WithdrawalStatus.WAITING_PROOF) {
+			withdrawalRequest.setStatus(WithdrawalStatus.COMPLETED);
+			withdrawalRequestRepository.save(withdrawalRequest);
+			log.info("Withdrawal request {} marked as COMPLETED after proof approval.", withdrawalRequest.getId());
+		}
+
+		return toProofResponse(savedProof);
+	}
+
+	@Override
+	public ProofResponse rejectProof(String id) {
+		log.info("Admin manually rejecting proof: {}", id);
+		Proof proof = proofRepository.findById(id)
+				.orElseThrow(() -> new AppException(ErrorCode.PROOF_NOT_FOUND));
+
+		proof.setAiStatus(AiStatus.REJECTED);
+		Proof savedProof = proofRepository.save(proof);
+
+		return toProofResponse(savedProof);
+	}
+
+	@Override
+	public ProofResponse upvoteProof(String id, String userId) {
+		log.info("User {} upvoting proof: {}", userId, id);
+		Proof proof = proofRepository.findById(id)
+				.orElseThrow(() -> new AppException(ErrorCode.PROOF_NOT_FOUND));
+
+		if (proof.getUpvoterIds() == null) {
+			proof.setUpvoterIds(new java.util.ArrayList<>());
+		}
+
+		if (!proof.getUpvoterIds().contains(userId)) {
+			proof.getUpvoterIds().add(userId);
+			proof.setUpvoteCount(proof.getUpvoterIds().size());
+			proof = proofRepository.save(proof);
+		}
+
+		return toProofResponse(proof);
+	}
+
+	@Override
+	public ProofResponse reportProof(String id, String userId) {
+		log.info("User {} reporting proof: {}", userId, id);
+		Proof proof = proofRepository.findById(id)
+				.orElseThrow(() -> new AppException(ErrorCode.PROOF_NOT_FOUND));
+
+		if (proof.getReporterIds() == null) {
+			proof.setReporterIds(new java.util.ArrayList<>());
+		}
+
+		if (!proof.getReporterIds().contains(userId)) {
+			proof.getReporterIds().add(userId);
+			proof.setReportCount(proof.getReporterIds().size());
+
+			// Custom logic: reject if more than 5 reports
+			if (proof.getReportCount() > 5) {
+				proof.setAiStatus(AiStatus.REJECTED);
+				log.warn("Proof {} reaches > 5 reports, marked as REJECTED", id);
+			}
+
+			proof = proofRepository.save(proof);
+		}
+
+		return toProofResponse(proof);
 	}
 }

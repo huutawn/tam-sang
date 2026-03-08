@@ -14,5 +14,7 @@ public record ProofResponse(
 		AiStatus aiStatus,
 		Integer aiScore,
 		String aiAnalysis,
+		Integer upvoteCount,
+		Integer reportCount,
 		Instant createdAt) {
 }
