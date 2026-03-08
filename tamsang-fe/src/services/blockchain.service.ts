@@ -123,13 +123,13 @@ export const BlockchainService = {
             const data = JSON.parse(block.transaction_data);
             amount = data.amount || 0;
 
-            if (data.type === "DONATION" || data.donor_name || data.donorName) {
+            if (data.type?.toUpperCase() === "DONATION" || data.metadata?.donor_name || data.metadata?.donorName) {
                 type = "DONATION";
-                donorName = data.donor_name || data.donorName || "Ẩn danh";
-                message = data.message;
-            } else if (data.type === "WITHDRAWAL" || data.reason) {
+                donorName = data.metadata?.donor_name || data.metadata?.donorName || "Ẩn danh";
+                message = data.metadata?.message;
+            } else if (data.type?.toUpperCase() === "WITHDRAWAL" || data.metadata?.reason) {
                 type = "WITHDRAWAL";
-                reason = data.reason;
+                reason = data.metadata?.reason || data.reason;
             }
         } catch {
             // Failed to parse, keep defaults

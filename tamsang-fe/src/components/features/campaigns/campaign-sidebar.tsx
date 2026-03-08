@@ -2,6 +2,7 @@
 
 import { Heart, Share2, ShieldCheck, Link as LinkIcon, CheckCircle } from "lucide-react";
 import { CampaignDetailResponse } from "@/services/campaign.service";
+import { useCampaignWallet } from "@/hooks/use-blockchain";
 import { useRecentDonations } from "@/hooks/use-donations";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,12 @@ interface CampaignSidebarProps {
 export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
     const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
     const { data: recentDonations } = useRecentDonations();
-    const progress = Math.min((campaign.currentAmount / campaign.targetAmount) * 100, 100);
+    const { data: wallet } = useCampaignWallet(campaign.id);
+
+    // Always prefer the blockchain verified total deposits over MongoDB cache
+    const currentAmount = wallet?.total_deposits ?? campaign.currentAmount;
+
+    const progress = Math.min((currentAmount / campaign.targetAmount) * 100, 100);
     const daysLeft = getDaysLeft(campaign.endDate);
     const isCompleted = campaign.status === "COMPLETED" || progress >= 100;
 
@@ -52,7 +58,7 @@ export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
                 <div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-3xl font-bold text-emerald-700">
-                            {formatVND(campaign.currentAmount)}
+                            {formatVND(currentAmount)}
                         </span>
                         <span className="text-sm text-muted-foreground">
                             / {formatVND(campaign.targetAmount)}
