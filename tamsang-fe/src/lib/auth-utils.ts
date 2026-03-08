@@ -6,7 +6,7 @@ export const REFRESH_TOKEN_COOKIE = 'refresh_token';
 export interface UserPayload {
   sub: string;
   email: string;
-  role: 'ADMIN' | 'ORGANIZER' | 'DONOR';
+  scope: string; // e.g., "ROLE_ADMIN", "ROLE_ORGANIZER", "ROLE_DONOR"
   exp: number;
   iat: number;
 }

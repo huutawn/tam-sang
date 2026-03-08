@@ -36,14 +36,13 @@ export function Header() {
     };
 
     const getDashboardLink = () => {
-        switch (user?.role) {
-            case "ADMIN":
-                return "/admin";
-            case "ORGANIZER":
-                return "/campaign-manager";
-            default:
-                return "/dashboard/thong-tin-ca-nhan";
+        if (user?.scope?.includes("ROLE_ADMIN")) {
+            return "/admin";
         }
+        if (user?.scope?.includes("ROLE_ORGANIZER")) {
+            return "/campaign-manager";
+        }
+        return "/dashboard/thong-tin-ca-nhan";
     };
 
     return (

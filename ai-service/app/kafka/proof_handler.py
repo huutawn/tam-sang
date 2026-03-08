@@ -64,17 +64,23 @@ class ProofVerificationHandler:
         
         for i, image_bytes in enumerate(bill_image_bytes_list):
             try:
+                logger.info(f"--- [Bill {i+1}/{len(bill_image_bytes_list)}] Starting analysis ---")
+                
                 # Forensics
+                logger.info(f"[Bill {i+1}] Running forensics...")
                 forensics_result = image_forensics_service.analyze(image_bytes)
                 if forensics_result["has_warning"]:
                     any_forensics_warning = True
                 if forensics_result.get("software_detected"):
                     any_software = forensics_result["software_detected"]
+                logger.info(f"[Bill {i+1}] Forensics complete (warning={forensics_result['has_warning']})")
                 
                 # LLM analysis
+                logger.info(f"[Bill {i+1}] Starting Gemini analysis...")
                 llm_result = await llm_reasoning_service.analyze_invoice(
                     image_bytes, campaign_context, withdrawal_reason
                 )
+                logger.info(f"[Bill {i+1}] Gemini analysis complete (score={llm_result['score']})")
                 
                 forensics_score = 0 if forensics_result["has_warning"] else 100
                 llm_score = llm_result["score"]
@@ -85,6 +91,7 @@ class ProofVerificationHandler:
                     all_valid = False
                 
                 analyses.append(f"**Hóa đơn {i+1}:** Score={image_score}/100\n{llm_result['reasoning']}")
+                logger.info(f"[Bill {i+1}] Done.")
                 
             except Exception as e:
                 logger.error(f"Error processing bill image {i+1} for proof {proof_id}: {e}", exc_info=True)
@@ -132,6 +139,7 @@ class ProofVerificationHandler:
         
         for i, image_bytes in enumerate(scene_image_bytes_list):
             try:
+                logger.info(f"--- [Scene {i+1}/{len(scene_image_bytes_list)}] Starting forensics ---")
                 forensics_result = image_forensics_service.analyze(image_bytes)
                 
                 if forensics_result["has_warning"]:
@@ -149,6 +157,7 @@ class ProofVerificationHandler:
                     f"EXIF={'⚠️' if forensics_result['has_warning'] else '✅'} "
                     f"| {forensics_result.get('details', 'OK')}"
                 )
+                logger.info(f"[Scene {i+1}] Forensics complete.")
                 
             except Exception as e:
                 logger.error(f"Error processing scene image {i+1} for proof {proof_id}: {e}", exc_info=True)

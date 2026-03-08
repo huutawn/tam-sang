@@ -1,5 +1,6 @@
 import logging
 import json
+import asyncio
 from typing import Dict
 import google.generativeai as genai
 from io import BytesIO
@@ -24,7 +25,7 @@ class LlmReasoningService:
         if settings.gemini_api_key and not settings.enable_gemini_mock:
             try:
                 genai.configure(api_key=settings.gemini_api_key)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                self.model = genai.GenerativeModel('gemini-flash-latest')
                 self.mock_mode = False
                 logger.info("Gemini API initialized successfully")
             except Exception as e:
@@ -132,16 +133,27 @@ Chỉ trả về JSON, không thêm text nào khác."""
                 return self._mock_response(campaign_context, withdrawal_reason)
             
             # Real Gemini API call
-            logger.info(f"Analyzing invoice with Gemini API - Reason: {withdrawal_reason}")
+            logger.info(f"[Gemini] Starting invoice analysis - Reason: {withdrawal_reason}")
             
             # Convert bytes to PIL Image
+            logger.info("[Gemini] Converting image bytes to PIL Image...")
             image = Image.open(BytesIO(image_bytes))
             
             # Create prompt
             prompt = self._create_prompt(campaign_context, withdrawal_reason)
+            logger.info("[Gemini] Prompt created, calling Gemini API (timeout=60s)...")
             
-            # Call Gemini API
-            response = self.model.generate_content([prompt, image])
+            # Call Gemini API with timeout using run_in_executor
+            loop = asyncio.get_event_loop()
+            response = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: self.model.generate_content([prompt, image])
+                ),
+                timeout=60
+            )
+            
+            logger.info("[Gemini] API responded, parsing result...")
             
             # Parse JSON response
             response_text = response.text.strip()
@@ -156,20 +168,27 @@ Chỉ trả về JSON, không thêm text nào khác."""
             
             result = json.loads(response_text.strip())
             
-            logger.info(f"Gemini analysis complete - Score: {result['score']}, Valid: {result['is_valid']}")
+            logger.info(f"[Gemini] Analysis complete - Score: {result['score']}, Valid: {result['is_valid']}")
             
             return result
             
+        except asyncio.TimeoutError:
+            logger.error("[Gemini] API call TIMED OUT after 60 seconds!")
+            return {
+                "score": 0,
+                "is_valid": False,
+                "reasoning": "Gemini API bị timeout sau 60 giây. Vui lòng thử lại."
+            }
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse Gemini response as JSON: {e}")
-            logger.error(f"Response text: {response_text}")
+            logger.error(f"[Gemini] Failed to parse response as JSON: {e}")
+            logger.error(f"[Gemini] Response text: {response_text}")
             return {
                 "score": 50,
                 "is_valid": False,
                 "reasoning": "Lỗi parse response từ Gemini API. Vui lòng kiểm tra lại."
             }
         except Exception as e:
-            logger.error(f"Error analyzing invoice with Gemini: {e}")
+            logger.error(f"[Gemini] Error analyzing invoice: {e}")
             return {
                 "score": 0,
                 "is_valid": False,
@@ -298,16 +317,27 @@ CHỈ trả về JSON, không thêm text nào khác."""
                 return self._mock_detailed_response(withdrawal_reason, campaign_goal)
             
             # Real Gemini API call
-            logger.info(f"Detailed invoice analysis with Gemini - Reason: {withdrawal_reason}")
+            logger.info(f"[Gemini-Detailed] Starting analysis - Reason: {withdrawal_reason}")
             
             # Convert bytes to PIL Image
+            logger.info("[Gemini-Detailed] Converting image bytes to PIL Image...")
             image = Image.open(BytesIO(image_bytes))
             
             # Create enhanced prompt
             prompt = self._create_detailed_prompt(withdrawal_reason, campaign_goal)
+            logger.info("[Gemini-Detailed] Prompt created, calling Gemini API (timeout=60s)...")
             
-            # Call Gemini API
-            response = self.model.generate_content([prompt, image])
+            # Call Gemini API with timeout
+            loop = asyncio.get_event_loop()
+            response = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: self.model.generate_content([prompt, image])
+                ),
+                timeout=60
+            )
+            
+            logger.info("[Gemini-Detailed] API responded, parsing result...")
             
             # Parse JSON response
             response_text = response.text.strip()
@@ -323,7 +353,7 @@ CHỈ trả về JSON, không thêm text nào khác."""
             result = json.loads(response_text.strip())
             
             logger.info(
-                f"Detailed Gemini analysis complete - "
+                f"[Gemini-Detailed] Analysis complete - "
                 f"Total: {result.get('total_amount', 0):,.0f}đ, "
                 f"Items: {len(result.get('items', []))}, "
                 f"Score: {result.get('trust_score', 0)}"
@@ -331,8 +361,18 @@ CHỈ trả về JSON, không thêm text nào khác."""
             
             return result
             
+        except asyncio.TimeoutError:
+            logger.error("[Gemini-Detailed] API call TIMED OUT after 60 seconds!")
+            return {
+                "total_amount": 0,
+                "items": [],
+                "price_warnings": ["Gemini API timeout"],
+                "serves_campaign_goal": False,
+                "reasoning": "Gemini API bị timeout sau 60 giây.",
+                "trust_score": 0
+            }
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse detailed Gemini response: {e}")
+            logger.error(f"[Gemini-Detailed] Failed to parse response: {e}")
             return {
                 "total_amount": 0,
                 "items": [],
@@ -342,7 +382,7 @@ CHỈ trả về JSON, không thêm text nào khác."""
                 "trust_score": 30
             }
         except Exception as e:
-            logger.error(f"Error in detailed invoice analysis: {e}")
+            logger.error(f"[Gemini-Detailed] Error in analysis: {e}")
             return {
                 "total_amount": 0,
                 "items": [],

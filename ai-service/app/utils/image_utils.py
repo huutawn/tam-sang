@@ -55,6 +55,11 @@ async def download_image(url: str) -> bytes:
             header, encoded = url.split(",", 1)
             content = base64.b64decode(encoded)
         else:
+            # Local dev workaround: rewrite file-service to localhost:8083
+            if "file-service" in url:
+                url = url.replace("https://file-service", "http://localhost:8083")
+                url = url.replace("http://file-service", "http://localhost:8083")
+
             logger.info("Downloading image from: %s", url)
     
             async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:

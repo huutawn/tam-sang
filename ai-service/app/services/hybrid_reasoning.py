@@ -97,9 +97,12 @@ class HybridReasoningService:
         for i, url in enumerate(image_urls):
             try:
                 # Download image
+                logger.info(f"--- [Scene {i+1}/{len(image_urls)}] Starting analysis ---")
+                logger.info(f"[Scene {i+1}] Downloading image from {url}...")
                 image_bytes = await download_image(url)
                 
                 # Check text-image relevance
+                logger.info(f"[Scene {i+1}] Checking relevance with CLIP...")
                 similarity, is_relevant, reasoning = clip_service.check_text_image_relevance(
                     image_bytes, withdrawal_reason
                 )
@@ -137,6 +140,7 @@ class HybridReasoningService:
                         )
                     except ValueError:
                         logger.warning(f"Invalid campaign_id format: {campaign_id}, skipping storage")
+                logger.info(f"[Scene {i+1}] Done.")
                 
             except Exception as e:
                 logger.error(f"Failed to analyze scene image {i} ({url}): {e}")
@@ -183,14 +187,18 @@ class HybridReasoningService:
         for i, url in enumerate(image_urls):
             try:
                 # Download image
+                logger.info(f"--- [Bill {i+1}/{len(image_urls)}] Starting analysis ---")
+                logger.info(f"[Bill {i+1}] Downloading image from {url}...")
                 image_bytes = await download_image(url)
                 
                 # Analyze with Gemini (enhanced prompt)
+                logger.info(f"[Bill {i+1}] Starting Gemini detailed analysis...")
                 result = await llm_reasoning_service.analyze_invoice_detailed(
                     image_bytes=image_bytes,
                     withdrawal_reason=withdrawal_reason,
                     campaign_goal=campaign_goal
                 )
+                logger.info(f"[Bill {i+1}] Gemini analysis complete (score={result.get('trust_score', 0)})")
                 
                 # Aggregate results
                 if "items" in result:

@@ -7,7 +7,8 @@ export type WithdrawalStatus =
   | "PROCESSING"
   | "COMPLETED"
   | "FAILED"
-  | "WAITING_PROOF";
+  | "WAITING_PROOF"
+  | "CANCELLED";
 
 export type WithdrawalType = "STANDARD" | "QUICK";
 

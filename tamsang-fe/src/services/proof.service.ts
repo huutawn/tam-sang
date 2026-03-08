@@ -11,6 +11,8 @@ export interface Proof {
   aiStatus: AiStatus;
   aiScore?: number;
   aiAnalysis?: string;
+  upvoteCount?: number;
+  reportCount?: number;
   createdAt: string;
 }
 
@@ -29,34 +31,38 @@ export interface ProofVerificationResult {
   verifiedAt: string;
 }
 
+import { FileService } from "./file.service";
+
 export const ProofService = {
   /**
    * Upload bằng chứng chi tiêu cho một withdrawal
-   * Gửi multipart form với billImages[] + sceneImages[] + description
+   * Tải ảnh lên file-service trước, lấy URLs, sau đó gửi URLs lên core-service
    */
   uploadProof: async (data: UploadProofRequest): Promise<Proof> => {
-    const formData = new FormData();
-    formData.append("withdrawalRequestId", data.withdrawalRequestId);
-
-    if (data.billImages) {
-      data.billImages.forEach((file) => {
-        formData.append("billImages", file);
-      });
+    // 1. Upload files to File-Service
+    let billImageUrls: string[] = [];
+    if (data.billImages && data.billImages.length > 0) {
+      billImageUrls = await FileService.uploadBatch(data.billImages);
     }
 
-    if (data.sceneImages) {
-      data.sceneImages.forEach((file) => {
-        formData.append("sceneImages", file);
-      });
+    let sceneImageUrls: string[] = [];
+    if (data.sceneImages && data.sceneImages.length > 0) {
+      sceneImageUrls = await FileService.uploadBatch(data.sceneImages);
     }
 
-    if (data.description) {
-      formData.append("description", data.description);
-    }
+    // 2. Send URLs to Core-Service
+    const payload = {
+      withdrawalRequestId: data.withdrawalRequestId,
+      billImageUrls,
+      sceneImageUrls,
+      description: data.description,
+    };
 
-    const response = await apiClient.post<{ result: Proof }>("/core/proofs", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await apiClient.post<{ result: Proof }>(
+      "/core/proofs",
+      payload
+    );
+
     return response.data.result;
   },
 
@@ -75,6 +81,22 @@ export const ProofService = {
    */
   getProofById: async (proofId: string): Promise<Proof> => {
     const response = await apiClient.get<{ result: Proof }>(`/core/proofs/${proofId}`);
+    return response.data.result;
+  },
+
+  /**
+   * Đồng tình với bằng chứng
+   */
+  upvoteProof: async (proofId: string): Promise<Proof> => {
+    const response = await apiClient.put<{ result: Proof }>(`/core/proofs/${proofId}/upvote`);
+    return response.data.result;
+  },
+
+  /**
+   * Báo cáo bằng chứng
+   */
+  reportProof: async (proofId: string): Promise<Proof> => {
+    const response = await apiClient.put<{ result: Proof }>(`/core/proofs/${proofId}/report`);
     return response.data.result;
   },
 };
