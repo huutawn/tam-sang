@@ -36,6 +36,10 @@ import {
 import { CampaignService, CampaignPageItem, PagedCampaignsResponse, CreateCampaignRequest } from "@/services/campaign.service"
 import { KYCService, ValidKycResponse } from "@/services/kyc.service"
 import { useAuthStore } from "@/store/auth-store"
+import { WithdrawalModal } from "@/components/features/campaigns/withdrawal-modal"
+import { ProofUploadModal } from "@/components/features/campaigns/proof-upload-modal"
+import { WithdrawalService, Withdrawal } from "@/services/withdrawal.service"
+import { BlockchainService } from "@/services/blockchain.service"
 
 type CampaignStatusType = "ACTIVE" | "PENDING" | "CLOSED" | "COMPLETED" | "REJECTED"
 
@@ -71,7 +75,47 @@ export function CampaignManagementContent() {
         images: [],
     })
 
+    const [activeWithdrawalCampaign, setActiveWithdrawalCampaign] = useState<{ id: string, title: string } | null>(null)
+    const [activeProofWithdrawal, setActiveProofWithdrawal] = useState<{ id: string, campaignTitle: string } | null>(null)
+    const [waitingProofMap, setWaitingProofMap] = useState<Record<string, Withdrawal>>({})
+    const [walletBalances, setWalletBalances] = useState<Record<string, number>>({})
+
     const user = useAuthStore((s) => s.user)
+
+    // Lấy mapping campaignId -> withdrawal (chờ bằng chứng)
+    const fetchWaitingProofs = async (campaignsList: CampaignPageItem[]) => {
+        const map: Record<string, Withdrawal> = {}
+        await Promise.all(
+            campaignsList.map(async (c) => {
+                try {
+                    const withdrawals = await WithdrawalService.getWithdrawals({ campaignId: c.id })
+                    const waiting = withdrawals.find((w) => w.status === "APPROVED" || w.status === "WAITING_PROOF")
+                    if (waiting) {
+                        map[c.id] = waiting
+                    }
+                } catch {
+                    // ignore errors for individual campaign fetch
+                }
+            })
+        )
+        setWaitingProofMap(map)
+    }
+
+    // Lấy số dư ví từ blockchain thay vì database để đồng bộ
+    const fetchWalletBalances = async (campaignsList: CampaignPageItem[]) => {
+        const balances: Record<string, number> = {}
+        await Promise.all(
+            campaignsList.map(async (c) => {
+                try {
+                    const wallet = await BlockchainService.getWalletByCampaign(c.id)
+                    balances[c.id] = wallet.total_deposits
+                } catch {
+                    // Nếu lỗi (vd chưa có ví), dùng DB fallback (0)
+                }
+            })
+        )
+        setWalletBalances(balances)
+    }
 
     useEffect(() => {
         fetchCampaigns()
@@ -82,8 +126,15 @@ export function CampaignManagementContent() {
             setLoading(true)
             setError(null)
             const data = await CampaignService.getMyCampaigns(1, 50)
-            setCampaigns(data.data || [])
+            const list = data.data || []
+            setCampaigns(list)
             setPageData(data)
+
+            // Lấy thông tin phụ sau khi tải xong campaign
+            if (list.length > 0) {
+                fetchWaitingProofs(list)
+                fetchWalletBalances(list)
+            }
         } catch (err) {
             console.error("Failed to fetch campaigns:", err)
             setError("Không thể tải danh sách chiến dịch. Vui lòng thử lại.")
@@ -474,8 +525,9 @@ export function CampaignManagementContent() {
                                 </tr>
                             ) : (
                                 filteredCampaigns.map((campaign) => {
+                                    const actualAmount = walletBalances[campaign.id] ?? campaign.currentAmount
                                     const progress = campaign.targetAmount > 0
-                                        ? Math.round((campaign.currentAmount / campaign.targetAmount) * 100)
+                                        ? Math.round((actualAmount / campaign.targetAmount) * 100)
                                         : 0
                                     const config = statusConfig[campaign.status] || { label: campaign.status, variant: "info" as const }
 
@@ -532,7 +584,7 @@ export function CampaignManagementContent() {
                                             <td className="py-3 px-4">
                                                 <div>
                                                     <p className="font-semibold text-gray-900">
-                                                        {formatAmount(campaign.currentAmount)}
+                                                        {formatAmount(actualAmount)}
                                                     </p>
                                                     <p className="text-xs text-gray-400">
                                                         / {formatAmount(campaign.targetAmount)}
@@ -559,9 +611,37 @@ export function CampaignManagementContent() {
                                             {/* Actions */}
                                             <td className="py-3 px-4">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <button className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                                                    {/* Xem chi tiết */}
+                                                    <button
+                                                        title="Xem website quyên góp"
+                                                        onClick={() => window.location.href = `/campaigns/${campaign.id}`}
+                                                        className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                                                    >
                                                         <Eye className="w-4 h-4" />
                                                     </button>
+
+                                                    {/* Yêu cầu rút tiền */}
+                                                    {campaign.status === "ACTIVE" && (
+                                                        <button
+                                                            title="Yêu cầu rút tiền"
+                                                            onClick={() => setActiveWithdrawalCampaign({ id: campaign.id, title: campaign.title })}
+                                                            className="p-1.5 rounded-md hover:bg-amber-50 text-gray-400 hover:text-amber-500 transition-colors"
+                                                        >
+                                                            <Activity className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+
+                                                    {/* Cập nhật bằng chứng */}
+                                                    {waitingProofMap[campaign.id] && (
+                                                        <button
+                                                            title="Cập nhật bằng chứng chi tiêu"
+                                                            onClick={() => setActiveProofWithdrawal({ id: waitingProofMap[campaign.id].id, campaignTitle: campaign.title })}
+                                                            className="p-1.5 rounded-md hover:bg-emerald-50 text-gray-400 hover:text-emerald-500 transition-colors"
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+
                                                     <button className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
                                                         <Pencil className="w-4 h-4" />
                                                     </button>
@@ -582,6 +662,29 @@ export function CampaignManagementContent() {
                     Hiển thị {filteredCampaigns.length} / {campaigns.length} chiến dịch
                 </div>
             </Card>
+
+            {/* Modals outside standard component flow */}
+            {activeWithdrawalCampaign && (
+                <WithdrawalModal
+                    isOpen={!!activeWithdrawalCampaign}
+                    onClose={() => setActiveWithdrawalCampaign(null)}
+                    campaignId={activeWithdrawalCampaign.id}
+                    campaignTitle={activeWithdrawalCampaign.title}
+                />
+            )}
+
+            {activeProofWithdrawal && (
+                <ProofUploadModal
+                    isOpen={!!activeProofWithdrawal}
+                    onClose={() => {
+                        setActiveProofWithdrawal(null);
+                        // Refetch waiting proofs to hide button if submitted
+                        fetchWaitingProofs(campaigns);
+                    }}
+                    withdrawalRequestId={activeProofWithdrawal.id}
+                    campaignTitle={activeProofWithdrawal.campaignTitle}
+                />
+            )}
         </div>
     )
 }

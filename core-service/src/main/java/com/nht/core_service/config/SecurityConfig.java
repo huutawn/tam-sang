@@ -19,25 +19,29 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
-        // Webhook endpoints (no authentication required)
-        "/api/v1/webhook/**",
-        
-        // WebSocket endpoints
-        "/ws/**",
-        
-        // Actuator health checks
-        "/actuator/health/**",
-        "/actuator/info",
-        "/webhook/**",
-        // Public campaign browsing (read-only)
-        "/campaigns",
-        "/campaigns/*",
-        
-        // Swagger/OpenAPI documentation
-        "/v3/api-docs/**",
-        "/swagger-ui/**",
-        "/swagger-ui.html",
-        "/donations/**"
+            // Webhook endpoints (no authentication required)
+            "/api/v1/webhook/**",
+
+            // WebSocket endpoints
+            "/ws/**",
+
+            // Actuator health checks
+            "/actuator/health/**",
+            "/actuator/info",
+            "/webhook/**",
+            // Public campaign browsing (read-only)
+            "/campaigns",
+            "/campaigns/*",
+
+            // Swagger/OpenAPI documentation
+            "/v3/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/donations/**",
+
+            // Internal service callbacks
+            "/withdrawals/internal/**",
+            "/proofs/internal/**"
     };
 
     private final CustomJwtDecoder customJwtDecoder;

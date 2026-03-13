@@ -22,94 +22,98 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class WithdrawalController {
-	
+
 	private final WithdrawalRequestService withdrawalRequestService;
-	
+
 	@PostMapping
 	public ResponseEntity<ApiResponse<WithdrawalRequestResponse>> createWithdrawal(
-		@Valid @RequestBody CreateWithdrawalRequest request
-	) {
+			@Valid @RequestBody CreateWithdrawalRequest request) {
 		log.info("Creating withdrawal request for campaign: {}", request.campaignId());
 		WithdrawalRequestResponse response = withdrawalRequestService.createWithdrawalRequest(request);
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal request created successfully", response));
 	}
-	
+
 	@GetMapping("/{id}")
 	public ResponseEntity<ApiResponse<WithdrawalRequestResponse>> getWithdrawal(
-		@PathVariable String id
-	) {
+			@PathVariable String id) {
 		log.info("Getting withdrawal request: {}", id);
 		WithdrawalRequestResponse response = withdrawalRequestService.getWithdrawalRequestById(id);
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal request retrieved successfully", response));
 	}
-	
+
 	@GetMapping
 	public ResponseEntity<ApiResponse<List<WithdrawalRequestResponse>>> getWithdrawalsByCampaignId(
-		@RequestParam(required = true) String campaignId,
-		@RequestParam(required = false) String status
-	) {
+			@RequestParam(required = true) String campaignId,
+			@RequestParam(required = false) String status) {
 		log.info("Getting withdrawals - campaignId: {}, status: {}", campaignId, status);
-		
-		List<WithdrawalRequestResponse> withdrawals = withdrawalRequestService.getWithdrawalsByCampaignId(campaignId, status);
-		
+
+		List<WithdrawalRequestResponse> withdrawals = withdrawalRequestService.getWithdrawalsByCampaignId(campaignId,
+				status);
+
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawals retrieved successfully", withdrawals));
 	}
-	
+
 	/**
-	 * Admin endpoint: Get all withdrawals with optional face verification status filter.
+	 * Admin endpoint: Get all withdrawals with optional face verification status
+	 * filter.
 	 * Sorted by faceVerificationStatus (WARNING first) then by createdAt DESC.
 	 */
 	@GetMapping("/admin")
 	public ResponseEntity<ApiResponse<Page<WithdrawalRequestResponse>>> getWithdrawalsForAdmin(
-		@RequestParam(required = false) FaceVerificationStatus faceStatus,
-		@RequestParam(defaultValue = "0") int page,
-		@RequestParam(defaultValue = "10") int size
-	) {
+			@RequestParam(required = false) FaceVerificationStatus faceStatus,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size) {
 		log.info("Admin getting withdrawals - faceStatus: {}, page: {}, size: {}", faceStatus, page, size);
-		Page<WithdrawalRequestResponse> withdrawals = withdrawalRequestService.getWithdrawalsForAdmin(faceStatus, page, size);
+		Page<WithdrawalRequestResponse> withdrawals = withdrawalRequestService.getWithdrawalsForAdmin(faceStatus, page,
+				size);
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Admin withdrawals retrieved successfully", withdrawals));
 	}
-	
+
 	@PutMapping("/{id}/approve")
 	public ResponseEntity<ApiResponse<WithdrawalRequestResponse>> approveWithdrawal(
-		@PathVariable String id
-	) {
+			@PathVariable String id) {
 		log.info("Approving withdrawal request: {}", id);
 		WithdrawalRequestResponse response = withdrawalRequestService.approveWithdrawal(id);
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal request approved successfully", response));
 	}
-	
+
 	@PutMapping("/{id}/reject")
 	public ResponseEntity<ApiResponse<WithdrawalRequestResponse>> rejectWithdrawal(
-		@PathVariable String id,
-		@Valid @RequestBody RejectWithdrawalRequest request
-	) {
+			@PathVariable String id,
+			@Valid @RequestBody RejectWithdrawalRequest request) {
 		log.info("Rejecting withdrawal request: {} with reason: {}", id, request.reason());
 		WithdrawalRequestResponse response = withdrawalRequestService.rejectWithdrawal(id, request.reason());
 		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal request rejected successfully", response));
 	}
-	
+
 	// ------------------------------------------------------------------
 	// Internal callback endpoint (called by AI-service)
 	// ------------------------------------------------------------------
-	
+
 	/**
 	 * Receive face verification result from AI-service via HTTP callback.
 	 */
 	@PostMapping("/internal/face-verification-callback")
 	public ResponseEntity<ApiResponse<Void>> handleFaceVerificationCallback(
-		@Valid @RequestBody FaceVerificationCallbackRequest request
-	) {
-		log.info("Received face verification callback for withdrawalId: {}, status: {}", 
-			request.withdrawalId(), request.status());
-		
+			@Valid @RequestBody FaceVerificationCallbackRequest request) {
+		log.info("Received face verification callback for withdrawalId: {}, status: {}",
+				request.withdrawalId(), request.status());
+
 		try {
 			withdrawalRequestService.updateFaceVerificationResult(request);
 			return ResponseEntity.ok(new ApiResponse<>(1000, "Face verification result processed", null));
 		} catch (Exception e) {
 			log.error("Failed to process face verification callback for withdrawalId: {}", request.withdrawalId(), e);
 			return ResponseEntity.internalServerError()
-				.body(new ApiResponse<>(5000, "Failed to process callback: " + e.getMessage(), null));
+					.body(new ApiResponse<>(5000, "Failed to process callback: " + e.getMessage(), null));
 		}
+	}
+
+	@PostMapping("/complete")
+	public ResponseEntity<ApiResponse<Void>> completeWithdrawalTransaction(
+			@Valid @RequestBody com.nht.core_service.dto.request.WithdrawalCompleteRequest request) {
+		log.info("Received complete withdrawal request from blockchain for withdrawalId: {}", request.withdrawalId());
+		withdrawalRequestService.completeWithdrawalTransaction(request);
+		return ResponseEntity.ok(new ApiResponse<>(1000, "Withdrawal transaction completed successfully", null));
 	}
 }

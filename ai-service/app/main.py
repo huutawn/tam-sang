@@ -7,11 +7,16 @@ from app.config import settings
 from app.kafka.consumer import kafka_consumer
 import py_eureka_client.eureka_client as eureka_client
 
-# Configure logging
+# Configure logging explicitly for the 'app' module and all submodules
+log_level_obj = getattr(logging, settings.log_level.upper())
 logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
+    level=log_level_obj,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
+
+# Force the 'app' namespace to use the correct log level (overriding uvicorn's hijacking)
+app_logger = logging.getLogger("app")
+app_logger.setLevel(log_level_obj)
 
 logger = logging.getLogger(__name__)
 

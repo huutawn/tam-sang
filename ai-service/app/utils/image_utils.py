@@ -27,15 +27,17 @@ _HTTP_TIMEOUT = httpx.Timeout(
 )
 
 
+import base64
+
 async def download_image(url: str) -> bytes:
     """
-    Download an image from a URL using async HTTP.
+    Download an image from a URL using async HTTP, or decode it if it's a data URI.
 
     The function validates that the downloaded bytes represent a valid image
     by attempting to open it with Pillow before returning.
 
     Args:
-        url: Fully-qualified URL of the image to download.
+        url: Fully-qualified URL of the image to download, or a base64 data URI.
 
     Returns:
         Raw image bytes.
@@ -44,22 +46,35 @@ async def download_image(url: str) -> bytes:
         httpx.HTTPStatusError: If the server returns a non-2xx status.
         PIL.UnidentifiedImageError: If the downloaded content is not a valid image.
         httpx.TimeoutException: If the request exceeds configured timeouts.
+        ValueError: If base64 decoding fails.
     """
     try:
-        logger.info("Downloading image from: %s", url)
+        if url.startswith("data:image/"):
+            logger.info("Decoding base64 image data URI")
+            # Expected format: data:image/jpeg;base64,...
+            header, encoded = url.split(",", 1)
+            content = base64.b64decode(encoded)
+        else:
+            # Local dev workaround: rewrite file-service to localhost:8083
+            if "file-service" in url:
+                url = url.replace("https://file-service", "http://localhost:8083")
+                url = url.replace("http://file-service", "http://localhost:8083")
 
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
-            response = await client.get(url)
-            response.raise_for_status()
+            logger.info("Downloading image from: %s", url)
+    
+            async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                content = response.content
 
         # Validate that the content is actually an image.
-        image = Image.open(io.BytesIO(response.content))
+        image = Image.open(io.BytesIO(content))
         logger.info(
-            "Image downloaded successfully: size=%s, format=%s",
+            "Image downloaded/decoded successfully: size=%s, format=%s",
             image.size, image.format,
         )
 
-        return response.content
+        return content
 
     except httpx.HTTPStatusError as e:
         logger.error(

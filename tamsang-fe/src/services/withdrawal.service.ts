@@ -6,7 +6,11 @@ export type WithdrawalStatus =
   | "REJECTED"
   | "PROCESSING"
   | "COMPLETED"
-  | "FAILED";
+  | "FAILED"
+  | "WAITING_PROOF"
+  | "CANCELLED";
+
+export type WithdrawalType = "STANDARD" | "QUICK";
 
 export interface Withdrawal {
   id: string;
@@ -14,11 +18,12 @@ export interface Withdrawal {
   campaignTitle: string;
   organizerId: string;
   amount: number;
-  purpose: string;
+  reason: string;
+  type: WithdrawalType;
   status: WithdrawalStatus;
-  bankName?: string;
-  bankAccountNumber?: string;
-  bankAccountHolder?: string;
+  selfieImageUrl?: string;
+  faceVerificationStatus?: string;
+  faceVerificationScore?: number;
   proofCount: number;
   reviewedBy?: string;
   reviewedAt?: string;
@@ -31,89 +36,56 @@ export interface Withdrawal {
 export interface CreateWithdrawalRequest {
   campaignId: string;
   amount: number;
-  purpose: string;
-  bankName: string;
-  bankAccountNumber: string;
-  bankAccountHolder: string;
-}
-
-export interface WithdrawalFilterParams {
-  campaignId?: string;
-  status?: WithdrawalStatus;
-  page?: number;
-  limit?: number;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  reason: string;
+  type?: WithdrawalType;
+  quick?: boolean;
+  selfieImageUrl: string;
 }
 
 export const WithdrawalService = {
   /**
-   * Lấy danh sách yêu cầu rút tiền với phân trang và filter
-   * @param params - Tham số filter và phân trang
+   * Lấy danh sách yêu cầu rút tiền theo campaign
    */
   getWithdrawals: async (
-    params: WithdrawalFilterParams = {}
-  ): Promise<{ result: Withdrawal[] }> => {
+    params: { campaignId: string; status?: string }
+  ): Promise<Withdrawal[]> => {
     const response = await apiClient.get<{ result: Withdrawal[] }>("/core/withdrawals", {
       params,
     });
-    return response.data;
+    return response.data.result;
   },
 
   /**
    * Lấy chi tiết một yêu cầu rút tiền
-   * @param id - ID của withdrawal
    */
   getWithdrawalById: async (id: string): Promise<Withdrawal> => {
-    const response = await apiClient.get<Withdrawal>(`/core/withdrawals/${id}`);
-    return response.data;
+    const response = await apiClient.get<{ result: Withdrawal }>(`/core/withdrawals/${id}`);
+    return response.data.result;
   },
 
   /**
    * Tạo yêu cầu rút tiền mới
-   * @param data - Dữ liệu yêu cầu rút tiền
    */
   createWithdrawal: async (data: CreateWithdrawalRequest): Promise<Withdrawal> => {
-    const response = await apiClient.post<Withdrawal>("/core/withdrawals", data);
-    return response.data;
-  },
-
-  /**
-   * Lấy danh sách yêu cầu rút tiền của organizer hiện tại
-   */
-  getMyWithdrawals: async (
-    params: Omit<WithdrawalFilterParams, "organizerId"> = {}
-  ): Promise<PaginatedResponse<Withdrawal>> => {
-    const response = await apiClient.get<PaginatedResponse<Withdrawal>>("/withdrawals/me", {
-      params,
-    });
-    return response.data;
+    const response = await apiClient.post<{ result: Withdrawal }>("/core/withdrawals", data);
+    return response.data.result;
   },
 
   /**
    * (Admin) Duyệt yêu cầu rút tiền
-   * @param id - ID của withdrawal
    */
   approveWithdrawal: async (id: string): Promise<Withdrawal> => {
-    const response = await apiClient.post<Withdrawal>(`/withdrawals/${id}/approve`);
-    return response.data;
+    const response = await apiClient.put<{ result: Withdrawal }>(`/core/withdrawals/${id}/approve`);
+    return response.data.result;
   },
 
   /**
    * (Admin) Từ chối yêu cầu rút tiền
-   * @param id - ID của withdrawal
-   * @param reason - Lý do từ chối
    */
   rejectWithdrawal: async (id: string, reason: string): Promise<Withdrawal> => {
-    const response = await apiClient.post<Withdrawal>(`/withdrawals/${id}/reject`, {
+    const response = await apiClient.put<{ result: Withdrawal }>(`/core/withdrawals/${id}/reject`, {
       reason,
     });
-    return response.data;
+    return response.data.result;
   },
 };

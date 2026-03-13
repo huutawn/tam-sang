@@ -1,9 +1,13 @@
 "use client";
 
-import { Heart, MessageCircle, Share2, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, Loader2, ThumbsUp, AlertTriangle } from "lucide-react";
 import { CampaignDetailResponse } from "@/services/campaign.service";
 import { useCampaignWithdrawals, useWithdrawalProofs } from "@/hooks/use-withdrawals";
 import { Withdrawal } from "@/services/withdrawal.service";
+import { ProofService, Proof } from "@/services/proof.service";
+import { useState } from "react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString("vi-VN", {
@@ -19,11 +23,11 @@ interface UpdatesTabProps {
 
 export function UpdatesTab({ campaign }: UpdatesTabProps) {
     const { data: withdrawalsData, isLoading } = useCampaignWithdrawals(campaign.id);
-    const withdrawals = withdrawalsData?.result ?? [];
+    const withdrawals = withdrawalsData ?? [];
 
-    // Only show approved/completed withdrawals as "updates"
+    // Show approved/waiting_proof/completed withdrawals as "updates"
     const updates = withdrawals.filter(
-        (w) => w.status === "APPROVED" || w.status === "COMPLETED"
+        (w) => w.status === "APPROVED" || w.status === "WAITING_PROOF" || w.status === "COMPLETED"
     );
 
     if (isLoading) {
@@ -64,6 +68,38 @@ export function UpdatesTab({ campaign }: UpdatesTabProps) {
 
 function UpdateCard({ withdrawal }: { withdrawal: Withdrawal }) {
     const { data: proofs } = useWithdrawalProofs(withdrawal.id);
+    const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+    const queryClient = useQueryClient();
+
+    const handleUpvote = async (proof: Proof) => {
+        setActionLoading((prev) => ({ ...prev, [proof.id]: true }));
+        try {
+            await ProofService.upvoteProof(proof.id);
+            toast.success("Đã đồng tình với bằng chứng");
+            queryClient.invalidateQueries({ queryKey: ["proofs", "withdrawal", withdrawal.id] });
+        } catch (error) {
+            console.error("Failed to upvote:", error);
+            toast.error("Vui lòng đăng nhập để thực hiện chức năng này");
+        } finally {
+            setActionLoading((prev) => ({ ...prev, [proof.id]: false }));
+        }
+    };
+
+    const handleReport = async (proof: Proof) => {
+        if (!confirm("Bạn có chắc chắn muốn báo cáo bằng chứng này vi phạm/không hợp lệ?")) return;
+
+        setActionLoading((prev) => ({ ...prev, [proof.id]: true }));
+        try {
+            await ProofService.reportProof(proof.id);
+            toast.success("Đã báo cáo bằng chứng");
+            queryClient.invalidateQueries({ queryKey: ["proofs", "withdrawal", withdrawal.id] });
+        } catch (error) {
+            console.error("Failed to report:", error);
+            toast.error("Vui lòng đăng nhập để thực hiện chức năng này");
+        } finally {
+            setActionLoading((prev) => ({ ...prev, [proof.id]: false }));
+        }
+    };
 
     const ownerInitial = "O"; // Organizer initial
 
@@ -76,7 +112,7 @@ function UpdateCard({ withdrawal }: { withdrawal: Withdrawal }) {
                         {ownerInitial}
                     </div>
                     <div>
-                        <h3 className="font-semibold text-foreground">{withdrawal.purpose}</h3>
+                        <h3 className="font-semibold text-foreground">{withdrawal.reason}</h3>
                         <p className="text-xs text-muted-foreground">
                             Người tổ chức • {formatDate(withdrawal.createdAt)}
                         </p>
@@ -92,29 +128,24 @@ function UpdateCard({ withdrawal }: { withdrawal: Withdrawal }) {
                         {new Intl.NumberFormat("vi-VN").format(withdrawal.amount)}₫
                     </span>
                 </p>
-                {withdrawal.bankName && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Ngân hàng: {withdrawal.bankName} • STK: {withdrawal.bankAccountNumber}
-                    </p>
-                )}
+
             </div>
 
             {/* Proof images */}
             {proofs && proofs.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                    {proofs.map((proof, i) => (
-                        <div key={proof.id} className="aspect-video rounded-xl overflow-hidden bg-muted border border-border">
-                            <img
-                                src={proof.fileUrl}
-                                alt={proof.description || `Bằng chứng ${i + 1}`}
-                                className="h-full w-full object-cover"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = "";
-                                    (e.target as HTMLImageElement).alt = "Không tải được ảnh";
-                                }}
-                            />
-                        </div>
-                    ))}
+                    {proofs.flatMap((proof) => [
+                        ...(proof.sceneImageUrls ?? []).map((url, i) => (
+                            <div key={`${proof.id}-scene-${i}`} className="aspect-video rounded-xl overflow-hidden bg-muted border border-border">
+                                <img src={url} alt={`Ảnh hiện trường ${i + 1}`} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            </div>
+                        )),
+                        ...(proof.billImageUrls ?? []).map((url, i) => (
+                            <div key={`${proof.id}-bill-${i}`} className="aspect-video rounded-xl overflow-hidden bg-muted border border-border">
+                                <img src={url} alt={`Hóa đơn ${i + 1}`} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            </div>
+                        )),
+                    ])}
                 </div>
             )}
 
@@ -130,27 +161,52 @@ function UpdateCard({ withdrawal }: { withdrawal: Withdrawal }) {
             )}
 
             {/* AI verification status */}
-            {proofs && proofs.some(p => p.status === "VERIFIED") && (
+            {proofs && proofs.some(p => p.aiStatus === "VERIFIED") && (
                 <div className="mb-4 flex items-center gap-2 text-xs text-emerald-600">
                     <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white">✓</span>
                     Bằng chứng đã được AI xác minh
                 </div>
             )}
 
-            {/* Footer actions */}
-            <div className="flex items-center gap-6 pt-3 border-t border-border">
-                <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    <Heart className="h-4 w-4" />
-                    <span>Thích</span>
-                </button>
-                <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    <MessageCircle className="h-4 w-4" />
-                    <span>Bình luận</span>
-                </button>
-                <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    <Share2 className="h-4 w-4" />
-                    <span>Chia sẻ</span>
-                </button>
+            {/* Footer actions (for the overall update) */}
+            <div className="flex flex-col gap-3 pt-3 border-t border-border">
+                {proofs && proofs.length > 0 && proofs.map((proof) => (
+                    <div key={`actions-${proof.id}`} className="flex items-center justify-between text-sm w-full bg-slate-50/50 p-2 rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => handleUpvote(proof)}
+                                disabled={actionLoading[proof.id]}
+                                className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 transition-colors font-medium disabled:opacity-50"
+                            >
+                                {actionLoading[proof.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
+                                <span>Đồng tình ({proof.upvoteCount || 0})</span>
+                            </button>
+                            <button
+                                onClick={() => handleReport(proof)}
+                                disabled={actionLoading[proof.id]}
+                                className="flex items-center gap-1.5 text-rose-500 hover:text-rose-600 transition-colors font-medium disabled:opacity-50"
+                            >
+                                {actionLoading[proof.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+                                <span>Báo cáo ({proof.reportCount || 0})</span>
+                            </button>
+                        </div>
+                    </div>
+                ))}
+
+                <div className="flex items-center gap-6 mt-2">
+                    <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                        <Heart className="h-4 w-4" />
+                        <span>Thích</span>
+                    </button>
+                    <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                        <MessageCircle className="h-4 w-4" />
+                        <span>Bình luận</span>
+                    </button>
+                    <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                        <Share2 className="h-4 w-4" />
+                        <span>Chia sẻ</span>
+                    </button>
+                </div>
             </div>
         </div>
     );

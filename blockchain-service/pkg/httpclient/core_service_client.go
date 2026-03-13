@@ -26,6 +26,15 @@ type DonationCompleteRequest struct {
 	BlockIndex      int64   `json:"blockIndex"`
 }
 
+// WithdrawalCompleteRequest represents the request to complete a withdrawal
+type WithdrawalCompleteRequest struct {
+	WithdrawalID    string  `json:"withdrawalId"`
+	CampaignID      string  `json:"campaignId"`
+	Amount          float64 `json:"amount"`
+	TransactionHash string  `json:"transactionHash"`
+	BlockIndex      int64   `json:"blockIndex"`
+}
+
 // ApiResponse represents the standard API response from core-service
 type ApiResponse struct {
 	Code    int         `json:"code"`
@@ -155,6 +164,94 @@ func (c *CoreServiceClient) doCompleteDonation(ctx context.Context, req *Donatio
 
 	logger.Info("Donation completed successfully in core-service",
 		zap.String("donation_id", req.DonationID),
+	)
+
+	return nil
+}
+
+// CompleteWithdrawal calls core-service to complete withdrawal processing
+func (c *CoreServiceClient) CompleteWithdrawal(ctx context.Context, req *WithdrawalCompleteRequest) error {
+	const maxRetries = 3
+
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+			logger.Info("Retrying CompleteWithdrawal",
+				zap.String("withdrawal_id", req.WithdrawalID),
+				zap.Int("attempt", attempt+1),
+				zap.Duration("backoff", backoff),
+			)
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context cancelled during retry: %w", ctx.Err())
+			case <-time.After(backoff):
+			}
+		}
+
+		lastErr = c.doCompleteWithdrawal(ctx, req)
+		if lastErr == nil {
+			return nil
+		}
+
+		logger.Warn("CompleteWithdrawal attempt failed",
+			zap.String("withdrawal_id", req.WithdrawalID),
+			zap.Int("attempt", attempt+1),
+			zap.Error(lastErr),
+		)
+	}
+
+	return fmt.Errorf("all %d attempts failed for withdrawal %s: %w", maxRetries, req.WithdrawalID, lastErr)
+}
+
+func (c *CoreServiceClient) doCompleteWithdrawal(ctx context.Context, req *WithdrawalCompleteRequest) error {
+	baseURL, err := c.getServiceURL()
+	if err != nil {
+		return fmt.Errorf("failed to discover core-service: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/core/withdrawals/complete", baseURL)
+
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	logger.Info("Calling core-service to complete withdrawal",
+		zap.String("url", url),
+		zap.String("withdrawal_id", req.WithdrawalID),
+		zap.String("campaign_id", req.CampaignID),
+	)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to call core-service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var apiResp ApiResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if apiResp.Code != 0 && apiResp.Code != 1000 {
+		return fmt.Errorf("core-service returned error: code=%d, message=%s", apiResp.Code, apiResp.Message)
+	}
+
+	logger.Info("Withdrawal completed successfully in core-service",
+		zap.String("withdrawal_id", req.WithdrawalID),
 	)
 
 	return nil

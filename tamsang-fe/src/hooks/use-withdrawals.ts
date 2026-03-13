@@ -9,7 +9,7 @@ export function useCampaignWithdrawals(campaignId: string) {
     return useQuery({
         queryKey: ["withdrawals", "campaign", campaignId],
         queryFn: () =>
-            WithdrawalService.getWithdrawals({ campaignId, page: 1, limit: 50 }),
+            WithdrawalService.getWithdrawals({ campaignId }),
         enabled: !!campaignId,
     });
 }

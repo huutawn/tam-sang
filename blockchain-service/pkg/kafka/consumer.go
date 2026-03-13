@@ -26,10 +26,12 @@ type Consumer struct {
 
 // NewConsumer creates a new Kafka consumer
 func NewConsumer(cfg *config.KafkaConfig, topic string) *Consumer {
+	groupID := fmt.Sprintf("%s-%s", cfg.ConsumerGroup, topic)
+
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:        cfg.Brokers,
 		Topic:          topic,
-		GroupID:        cfg.ConsumerGroup,
+		GroupID:        groupID,
 		MinBytes:       10e3, // 10KB
 		MaxBytes:       10e6, // 10MB
 		MaxWait:        1 * time.Second,

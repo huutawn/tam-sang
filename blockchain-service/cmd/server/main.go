@@ -187,7 +187,7 @@ func main() {
 
 				return nil
 			})
-//
+			//
 			// Register default handler — handles Spring raw DTO (no envelope)
 			contractConsumer.RegisterHandler("*", func(ctx context.Context, eventType string, payload []byte) error {
 				var signRequest domain.ContractSignKafkaRequest
@@ -253,6 +253,22 @@ func main() {
 
 			logger.Info("Donation consumer started",
 				zap.String("topic", cfg.Kafka.TopicDonationEvents),
+			)
+		}
+
+		// Initialize withdrawal consumer if topic is configured
+		if cfg.Kafka.TopicWithdrawalEvents != "" {
+			coreServiceClient := httpclient.NewCoreServiceClient(cfg.Eureka.URL)
+			withdrawalHandler := kafkaHandler.NewWithdrawalHandler(ledgerAuditor, coreServiceClient)
+
+			withdrawalConsumer := kafka.NewConsumer(&cfg.Kafka, cfg.Kafka.TopicWithdrawalEvents)
+			withdrawalConsumer.RegisterHandler("*", withdrawalHandler.HandleWithdrawalEvent)
+
+			withdrawalConsumer.Start(ctx)
+			defer withdrawalConsumer.Stop()
+
+			logger.Info("Withdrawal consumer started",
+				zap.String("topic", cfg.Kafka.TopicWithdrawalEvents),
 			)
 		}
 	}
