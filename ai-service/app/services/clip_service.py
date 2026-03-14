@@ -59,6 +59,25 @@ class ClipService:
         except Exception as e:
             logger.error(f"Failed to load CLIP model: {e}")
             raise
+
+    def _extract_feature_tensor(self, output, *, preferred_attrs: Tuple[str, ...]) -> torch.Tensor:
+        if isinstance(output, torch.Tensor):
+            return output
+
+        for attr in preferred_attrs:
+            value = getattr(output, attr, None)
+            if isinstance(value, torch.Tensor):
+                return value
+
+        pooler_output = getattr(output, "pooler_output", None)
+        if isinstance(pooler_output, torch.Tensor):
+            return pooler_output
+
+        last_hidden_state = getattr(output, "last_hidden_state", None)
+        if isinstance(last_hidden_state, torch.Tensor):
+            return last_hidden_state[:, 0, :]
+
+        raise TypeError(f"Unsupported CLIP feature output type: {type(output)!r}")
     
     def compute_image_embedding(self, image_bytes: bytes) -> List[float]:
         """
@@ -82,6 +101,10 @@ class ClipService:
             # Compute embedding
             with torch.no_grad():
                 image_features = self.model.get_image_features(**inputs)
+                image_features = self._extract_feature_tensor(
+                    image_features,
+                    preferred_attrs=("image_embeds",),
+                )
                 # Normalize embedding
                 image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
             
@@ -114,6 +137,10 @@ class ClipService:
             # Compute embedding
             with torch.no_grad():
                 text_features = self.model.get_text_features(**inputs)
+                text_features = self._extract_feature_tensor(
+                    text_features,
+                    preferred_attrs=("text_embeds",),
+                )
                 # Normalize embedding
                 text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
             
@@ -230,6 +257,10 @@ class ClipService:
             # Compute embeddings
             with torch.no_grad():
                 image_features = self.model.get_image_features(**inputs)
+                image_features = self._extract_feature_tensor(
+                    image_features,
+                    preferred_attrs=("image_embeds",),
+                )
                 image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
             
             embeddings = image_features.cpu().numpy().tolist()

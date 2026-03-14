@@ -62,6 +62,14 @@ class LlmReasoningService:
             return 0.0
 
     def _normalize_detailed_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        raw_trust_score = self._to_float(result.get("trust_score", 0))
+        if 0 < raw_trust_score <= 1:
+            raw_trust_score *= 100
+
+        extraction_confidence = self._to_float(result.get("extraction_confidence", 0.0))
+        if extraction_confidence > 1:
+            extraction_confidence /= 100
+
         normalized_items = []
         for item in result.get("items", []) or []:
             normalized_items.append(
@@ -83,10 +91,10 @@ class LlmReasoningService:
             "price_warnings": [str(x) for x in (result.get("price_warnings", []) or [])],
             "serves_campaign_goal": bool(result.get("serves_campaign_goal", False)),
             "reasoning": str(result.get("reasoning", "")).strip(),
-            "trust_score": max(0, min(100, int(self._to_float(result.get("trust_score", 0))))),
+            "trust_score": max(0, min(100, int(round(raw_trust_score)))),
             "extraction_confidence": max(
                 0.0,
-                min(1.0, self._to_float(result.get("extraction_confidence", 0.0))),
+                min(1.0, extraction_confidence),
             ),
         }
 

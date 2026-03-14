@@ -30,6 +30,7 @@ from app.kafka.proof_handler import proof_verification_handler
 from app.services.hybrid_reasoning import hybrid_reasoning_service
 from app.services.image_forensics import image_forensics_service
 from app.services.face_verification import face_verification_service
+from app.utils.callback_utils import build_callback_urls
 from app.utils.image_utils import download_image
 
 logger = logging.getLogger(__name__)
@@ -500,27 +501,42 @@ class KycKafkaConsumer:
             analysis_log=analysis_log
         )
 
-        callback_url = f"{settings.core_service_url}/api/core{settings.face_verification_callback_endpoint}"
-        logger.info("Sending face verification callback to %s for withdrawal %s", callback_url, withdrawal_id)
+        callback_urls = build_callback_urls(
+            base_url=settings.core_service_url,
+            configured_endpoint=settings.face_verification_callback_endpoint,
+            gateway_path="/api/core/withdrawals/internal/face-verification-callback",
+            direct_path="/withdrawals/internal/face-verification-callback",
+        )
+        logger.info("Sending face verification callback to %s for withdrawal %s", callback_urls, withdrawal_id)
 
         for attempt in range(settings.callback_retry_count):
-            try:
-                async with httpx.AsyncClient(timeout=settings.callback_timeout) as client:
-                    resp = await client.post(
-                        callback_url,
-                        json=payload.model_dump(mode="json"),
-                        headers={"Content-Type": "application/json"}
-                    )
-                    if resp.status_code in (200, 201, 202):
-                        logger.info("Face verification callback successful for withdrawal %s", withdrawal_id)
-                        return True
-                    else:
-                        logger.warning(
-                            "Callback attempt %d failed: status=%d, body=%s",
-                            attempt + 1, resp.status_code, resp.text
+            for callback_url in callback_urls:
+                try:
+                    async with httpx.AsyncClient(timeout=settings.callback_timeout) as client:
+                        resp = await client.post(
+                            callback_url,
+                            json=payload.model_dump(mode="json"),
+                            headers={"Content-Type": "application/json"}
                         )
-            except Exception as e:
-                logger.error("Callback request failed (attempt %d): %s", attempt + 1, e)
+                        if resp.status_code in (200, 201, 202):
+                            logger.info(
+                                "Face verification callback successful for withdrawal %s via %s",
+                                withdrawal_id,
+                                callback_url,
+                            )
+                            return True
+
+                        logger.warning(
+                            "Callback attempt %d via %s failed: status=%d, body=%s",
+                            attempt + 1, callback_url, resp.status_code, resp.text
+                        )
+                except Exception as e:
+                    logger.error(
+                        "Callback request failed (attempt %d via %s): %s",
+                        attempt + 1,
+                        callback_url,
+                        e,
+                    )
 
             if attempt < settings.callback_retry_count - 1:
                 await asyncio.sleep(2 ** attempt)

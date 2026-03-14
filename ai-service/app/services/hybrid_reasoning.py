@@ -32,6 +32,7 @@ from app.services.image_forensics import image_forensics_service
 from app.services.llm_reasoning import llm_reasoning_service
 from app.services.proof_rubric import assess_proof
 from app.services.vector_db import DuplicateLookupResult, vector_db_service
+from app.utils.callback_utils import build_callback_urls
 from app.utils.image_utils import download_image
 
 logger = logging.getLogger(__name__)
@@ -452,32 +453,44 @@ class HybridReasoningService:
         )
 
     async def _send_callback(self, response: HybridReasoningResponse) -> bool:
-        callback_url = f"{settings.core_service_url}{settings.callback_endpoint}"
         payload = CallbackPayload.from_response(response)
+        callback_urls = build_callback_urls(
+            base_url=settings.core_service_url,
+            configured_endpoint=settings.callback_endpoint,
+            gateway_path="/api/core/proofs/internal/hybrid-callback",
+            direct_path="/proofs/internal/hybrid-callback",
+        )
 
-        logger.info("Sending callback to %s for proof %s", callback_url, response.proof_id)
+        logger.info("Sending callback to %s for proof %s", callback_urls, response.proof_id)
 
         for attempt in range(settings.callback_retry_count):
-            try:
-                client = await self._get_http_client()
-                http_response = await client.post(
-                    callback_url,
-                    json=payload.model_dump(mode="json"),
-                    headers={"Content-Type": "application/json"},
-                )
+            for callback_url in callback_urls:
+                try:
+                    client = await self._get_http_client()
+                    http_response = await client.post(
+                        callback_url,
+                        json=payload.model_dump(mode="json"),
+                        headers={"Content-Type": "application/json"},
+                    )
 
-                if http_response.status_code in (200, 201, 202):
-                    logger.info("Callback successful for proof %s", response.proof_id)
-                    return True
+                    if http_response.status_code in (200, 201, 202):
+                        logger.info("Callback successful for proof %s via %s", response.proof_id, callback_url)
+                        return True
 
-                logger.warning(
-                    "Callback attempt %s failed: status=%s body=%s",
-                    attempt + 1,
-                    http_response.status_code,
-                    http_response.text,
-                )
-            except httpx.RequestError as exc:
-                logger.error("Callback request failed (attempt %s): %s", attempt + 1, exc)
+                    logger.warning(
+                        "Callback attempt %s via %s failed: status=%s body=%s",
+                        attempt + 1,
+                        callback_url,
+                        http_response.status_code,
+                        http_response.text,
+                    )
+                except httpx.RequestError as exc:
+                    logger.error(
+                        "Callback request failed (attempt %s via %s): %s",
+                        attempt + 1,
+                        callback_url,
+                        exc,
+                    )
 
             if attempt < settings.callback_retry_count - 1:
                 await asyncio.sleep(2 ** attempt)
