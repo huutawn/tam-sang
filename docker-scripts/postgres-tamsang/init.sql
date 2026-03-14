@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS donation (
     payment_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     payos_transaction_id VARCHAR(255),
     payment_code VARCHAR(255) NOT NULL UNIQUE,
+    blockchain_tx_hash VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_donation_transaction FOREIGN KEY (transaction_id) REFERENCES transaction(id) ON DELETE SET NULL
 );

@@ -12,6 +12,7 @@ public record CampaignResponse(
 		String content,
 		BigDecimal targetAmount,
 		BigDecimal currentAmount,
+		BigDecimal usedAmount,
 		BigDecimal walletBalance,
 		List<String> images,
 		CampaignStatus status,

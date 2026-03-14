@@ -117,6 +117,22 @@ function CampaignGridCard({ campaign }: { campaign: CampaignPageItem }) {
                             </span>
                         </div>
                         <Progress value={progress} className="h-2" />
+                        <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+                            <div className="rounded-lg bg-muted/60 px-2 py-2">
+                                <p className="text-muted-foreground">Mục tiêu</p>
+                                <p className="font-semibold text-foreground">{formatVND(campaign.targetAmount)}</p>
+                            </div>
+                            <div className="rounded-lg bg-muted/60 px-2 py-2">
+                                <p className="text-muted-foreground">Đã dùng</p>
+                                <p className="font-semibold text-foreground">{formatVND(campaign.usedAmount ?? 0)}</p>
+                            </div>
+                            <div className="rounded-lg bg-muted/60 px-2 py-2">
+                                <p className="text-muted-foreground">Hiện có</p>
+                                <p className="font-semibold text-foreground">
+                                    {formatVND(Math.max(campaign.currentAmount - (campaign.usedAmount ?? 0), 0))}
+                                </p>
+                            </div>
+                        </div>
 
                         {/* Footer stats */}
                         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">

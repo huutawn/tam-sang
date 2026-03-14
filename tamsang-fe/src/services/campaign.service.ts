@@ -49,6 +49,7 @@ export interface CampaignDetailResponse {
   content: string;
   targetAmount: number;
   currentAmount: number;
+  usedAmount: number;
   walletBalance: number;
   images: string[];
   status: string;

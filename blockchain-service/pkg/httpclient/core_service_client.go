@@ -121,7 +121,7 @@ func (c *CoreServiceClient) doCompleteDonation(ctx context.Context, req *Donatio
 		return fmt.Errorf("failed to discover core-service: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/core/donations/complete", baseURL)
+	url := fmt.Sprintf("%s/donations/complete", baseURL)
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {
@@ -210,7 +210,7 @@ func (c *CoreServiceClient) doCompleteWithdrawal(ctx context.Context, req *Withd
 		return fmt.Errorf("failed to discover core-service: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/core/withdrawals/complete", baseURL)
+	url := fmt.Sprintf("%s/withdrawals/complete", baseURL)
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {

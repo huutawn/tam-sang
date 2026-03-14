@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Share2, ShieldCheck, Link as LinkIcon, CheckCircle, Wallet, FileCheck } from "lucide-react";
+import { Share2, ShieldCheck, Link as LinkIcon, CheckCircle, Wallet, FileCheck } from "lucide-react";
 import { CampaignDetailResponse } from "@/services/campaign.service";
 import { useCampaignWallet } from "@/hooks/use-blockchain";
 import { useRecentDonations } from "@/hooks/use-donations";
@@ -53,6 +53,8 @@ export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
 
     // Always prefer the blockchain verified total deposits over MongoDB cache
     const currentAmount = wallet?.total_deposits ?? campaign.currentAmount;
+    const usedAmount = wallet?.total_withdrawals ?? campaign.usedAmount ?? 0;
+    const availableAmount = wallet?.balance ?? Math.max(currentAmount - usedAmount, 0);
 
     const progress = Math.min((currentAmount / campaign.targetAmount) * 100, 100);
     const daysLeft = getDaysLeft(campaign.endDate);
@@ -96,6 +98,21 @@ export function CampaignSidebar({ campaign }: CampaignSidebarProps) {
                         ) : daysLeft !== null ? (
                             <span>{daysLeft} ngày còn lại</span>
                         ) : null}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-3">
+                        <p className="text-xs font-medium text-emerald-700">Mục tiêu</p>
+                        <p className="mt-1 text-sm font-semibold text-emerald-900">{formatVND(campaign.targetAmount)}</p>
+                    </div>
+                    <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-3">
+                        <p className="text-xs font-medium text-amber-700">Đã dùng</p>
+                        <p className="mt-1 text-sm font-semibold text-amber-900">{formatVND(usedAmount)}</p>
+                    </div>
+                    <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-3">
+                        <p className="text-xs font-medium text-sky-700">Hiện có</p>
+                        <p className="mt-1 text-sm font-semibold text-sky-900">{formatVND(availableAmount)}</p>
                     </div>
                 </div>
 

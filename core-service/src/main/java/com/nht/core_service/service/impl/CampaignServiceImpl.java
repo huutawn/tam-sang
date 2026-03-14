@@ -210,6 +210,7 @@ public class CampaignServiceImpl implements CampaignService {
 				campaign.getContent(),
 				campaign.getTargetAmount(),
 				campaign.getCurrentAmount(),
+				campaign.getUsedAmount(),
 				walletBalance,
 				campaign.getImages(),
 				campaign.getStatus(),
