@@ -34,6 +34,12 @@ public record HybridReasoningCallbackRequest(
 	@JsonProperty("analysis_summary")
 	String analysisSummary,
 
+	@JsonProperty("decision")
+	String decision,
+
+	@JsonProperty("rubric_version")
+	String rubricVersion,
+
 	@JsonProperty("trust_hash")
 	String trustHash,
 

@@ -227,7 +227,7 @@ class KycKafkaConsumer:
 
     def _dispatch_hybrid(self, event_data: dict) -> None:
         """Parse and process a hybrid reasoning event."""
-        proof_id = event_data.get("proof_id", "unknown")
+        proof_id = event_data.get("proof_id") or event_data.get("proofId", "unknown")
         logger.info("Received HybridReasoningRequest: %s", proof_id)
         try:
             self._loop.run_until_complete(self.process_hybrid_reasoning_event(event_data))
@@ -336,7 +336,7 @@ class KycKafkaConsumer:
 
         Results are sent via HTTP callback to Core-service.
         """
-        proof_id = event_data.get("proof_id", "unknown")
+        proof_id = event_data.get("proof_id") or event_data.get("proofId", "unknown")
         try:
             logger.info("Processing hybrid reasoning for proof_id: %s", proof_id)
 

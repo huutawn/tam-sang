@@ -1,8 +1,6 @@
 package com.nht.core_service.service.impl;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,14 +15,11 @@ import com.nht.core_service.dto.request.HybridReasoningCallbackRequest;
 import com.nht.core_service.dto.response.ProofResponse;
 import com.nht.core_service.enums.AiStatus;
 import com.nht.core_service.enums.WithdrawalStatus;
-import com.nht.core_service.enums.WithdrawalType;
 import com.nht.core_service.exception.AppException;
 import com.nht.core_service.exception.ErrorCode;
 import com.nht.core_service.kafka.event.HybridReasoningRequestEvent;
-import com.nht.core_service.kafka.event.ProofVerificationRequestEvent;
 import com.nht.core_service.kafka.event.ProofVerificationResultEvent;
 import com.nht.core_service.kafka.producer.HybridReasoningProducer;
-import com.nht.core_service.kafka.producer.ProofKafkaProducer;
 import com.nht.core_service.repository.mongodb.CampaignRepository;
 import com.nht.core_service.repository.mongodb.ProofRepository;
 import com.nht.core_service.repository.mongodb.WithdrawalRequestRepository;
@@ -42,7 +37,6 @@ public class ProofServiceImpl implements ProofService {
 	private final ProofRepository proofRepository;
 	private final WithdrawalRequestRepository withdrawalRequestRepository;
 	private final CampaignRepository campaignRepository;
-	private final ProofKafkaProducer proofKafkaProducer;
 	private final HybridReasoningProducer hybridReasoningProducer;
 	private final WebSocketService webSocketService;
 
@@ -79,20 +73,17 @@ public class ProofServiceImpl implements ProofService {
 		Campaign campaign = campaignRepository.findById(withdrawalRequest.getCampaignId())
 				.orElseThrow(() -> new AppException(ErrorCode.CAMPAIGN_NOT_FOUND));
 
-		// 5. Build context for AI Service
-		Map<String, String> context = new HashMap<>();
-		context.put("campaignContext", campaign.getTitle() + " - " + campaign.getDescription());
-		context.put("withdrawalReason", withdrawalRequest.getReason());
-
-		// 6. Publish Kafka event with categorized image lists
-		ProofVerificationRequestEvent event = new ProofVerificationRequestEvent(
+		// 5. Publish ONE unified hybrid reasoning event for proof AI
+		HybridReasoningRequestEvent event = new HybridReasoningRequestEvent(
 				savedProof.getId(),
+				campaign.getId(),
 				billImageUrls,
 				sceneImageUrls,
-				context);
+				withdrawalRequest.getReason(),
+				buildCampaignGoal(campaign));
 
-		proofKafkaProducer.sendProofVerificationRequest(event);
-		log.info("Kafka event sent for proof: {}", savedProof.getId());
+		hybridReasoningProducer.sendHybridReasoningRequest(event);
+		log.info("Hybrid reasoning event sent for proof: {}", savedProof.getId());
 
 		return toProofResponse(savedProof);
 	}
@@ -172,13 +163,23 @@ public class ProofServiceImpl implements ProofService {
 		Proof proof = proofRepository.findById(request.proofId())
 				.orElseThrow(() -> new AppException(ErrorCode.PROOF_NOT_FOUND));
 
-		// Map trust score and validity
-		proof.setAiStatus(request.isValid() ? AiStatus.VERIFIED : AiStatus.REJECTED);
+		// Map rubric decision to current enum:
+		// VERIFIED -> VERIFIED, NEEDS_REVIEW -> keep PROCESSING for manual follow-up,
+		// SUSPICIOUS -> REJECTED
+		proof.setAiStatus(mapHybridDecisionToStatus(request.decision(), request.isValid()));
 		proof.setAiScore(request.trustScore());
 
 		// Build comprehensive analysis from hybrid reasoning details
 		StringBuilder analysis = new StringBuilder();
 		analysis.append(request.analysisSummary() != null ? request.analysisSummary() : "");
+
+		if (request.decision() != null) {
+			analysis.append("\n[Decision] ").append(request.decision());
+		}
+
+		if (request.rubricVersion() != null) {
+			analysis.append("\n[Rubric] ").append(request.rubricVersion());
+		}
 
 		if (request.geminiTotalAmount() != null && request.geminiTotalAmount() > 0) {
 			analysis.append(String.format("\n[Gemini] Tổng tiền: %.0f VND, Số mặt hàng: %d",
@@ -228,6 +229,27 @@ public class ProofServiceImpl implements ProofService {
 				proof.getUpvoteCount(),
 				proof.getReportCount(),
 				proof.getCreatedAt());
+	}
+
+	private String buildCampaignGoal(Campaign campaign) {
+		String narrative = campaign.getContent();
+		if (narrative == null || narrative.isBlank()) {
+			narrative = campaign.getDescription();
+		}
+		if (narrative == null || narrative.isBlank()) {
+			narrative = campaign.getTitle();
+		}
+		return campaign.getTitle() + " - " + narrative;
+	}
+
+	private AiStatus mapHybridDecisionToStatus(String decision, Boolean isValid) {
+		if (Boolean.TRUE.equals(isValid)) {
+			return AiStatus.VERIFIED;
+		}
+		if ("NEEDS_REVIEW".equalsIgnoreCase(decision)) {
+			return AiStatus.PROCESSING;
+		}
+		return AiStatus.REJECTED;
 	}
 
 	@Override
