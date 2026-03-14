@@ -27,6 +27,7 @@ from app.models.hybrid_events import (
     ImageRelevanceResult,
 )
 from app.services.clip_service import clip_service
+from app.services.bill_validator import validate_bill_result
 from app.services.llm_reasoning import llm_reasoning_service
 from app.services.proof_rubric import assess_proof
 from app.services.vector_db import vector_db_service
@@ -149,6 +150,7 @@ class HybridReasoningService:
         all_items: List[BillItem] = []
         total_amount = 0.0
         price_warnings: List[str] = []
+        validation_warnings: List[str] = []
         all_valid = True
         all_reasoning: List[str] = []
         total_score = 0
@@ -163,7 +165,9 @@ class HybridReasoningService:
                     campaign_goal=campaign_goal,
                 )
 
-                for item_data in result.get("items", []):
+                validation = validate_bill_result(result)
+
+                for item_data in validation.normalized_items:
                     all_items.append(
                         BillItem(
                             name=item_data.get("name", "Unknown"),
@@ -176,14 +180,21 @@ class HybridReasoningService:
 
                 total_amount += result.get("total_amount", 0)
                 price_warnings.extend(result.get("price_warnings", []))
+                validation_warnings.extend(validation.validation_warnings)
 
                 if not result.get("serves_campaign_goal", True):
+                    all_valid = False
+                if not validation.is_structurally_valid:
                     all_valid = False
 
                 all_reasoning.append(
                     f"Hoa don {i + 1}: {result.get('reasoning', 'Khong co phan tich')}"
                 )
-                total_score += result.get("trust_score", 50)
+                if validation.validation_warnings:
+                    all_reasoning.append(
+                        f"Hoa don {i + 1} - validator: {' | '.join(validation.validation_warnings)}"
+                    )
+                total_score += validation.adjusted_trust_score
 
             except Exception as e:
                 logger.error("Failed to analyze bill image %s (%s): %s", i, url, e)
@@ -195,6 +206,7 @@ class HybridReasoningService:
             total_amount=total_amount,
             items=all_items,
             price_warnings=price_warnings,
+            validation_warnings=validation_warnings,
             serves_campaign_goal=all_valid,
             reasoning="\n".join(all_reasoning),
             trust_score=avg_score,
@@ -212,7 +224,7 @@ class HybridReasoningService:
             bill_score=bill_score,
             scene_score=clip_score,
             duplicate_detected=clip_result.duplicate_detected,
-            price_warning_count=len(gemini_result.price_warnings),
+            bill_warning_count=len(gemini_result.price_warnings) + len(gemini_result.validation_warnings),
             serves_campaign_goal=gemini_result.serves_campaign_goal,
         )
 
@@ -230,6 +242,11 @@ class HybridReasoningService:
         if gemini_result.price_warnings:
             summary_parts.append(
                 f"CANH BAO: {len(gemini_result.price_warnings)} don gia bat thuong"
+            )
+
+        if gemini_result.validation_warnings:
+            summary_parts.append(
+                f"CANH BAO: {len(gemini_result.validation_warnings)} canh bao validator bill"
             )
 
         if gemini_result.serves_campaign_goal:

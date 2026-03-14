@@ -74,6 +74,7 @@ class GeminiAnalysisResult(BaseModel):
     total_amount: float = Field(default=0.0, description="Tong tien tren hoa don")
     items: List[BillItem] = Field(default_factory=list, description="Danh sach hang hoa")
     price_warnings: List[str] = Field(default_factory=list, description="Canh bao don gia bat thuong")
+    validation_warnings: List[str] = Field(default_factory=list, description="Canh bao validator cuc bo")
     serves_campaign_goal: bool = Field(default=True, description="Phuc vu muc tieu chien dich")
     reasoning: str = Field(default="", description="Ly do danh gia")
     trust_score: int = Field(default=0, ge=0, le=100, description="Diem tin cay 0-100")
@@ -178,6 +179,7 @@ class CallbackPayload(BaseModel):
     gemini_total_amount: float = 0.0
     gemini_items_count: int = 0
     gemini_price_warnings: List[str] = []
+    gemini_validation_warnings: List[str] = []
     clip_scene_score: float = 0.0
     duplicate_detected: bool = False
     timestamp: datetime
@@ -195,6 +197,7 @@ class CallbackPayload(BaseModel):
             gemini_total_amount=response.gemini_analysis.total_amount,
             gemini_items_count=len(response.gemini_analysis.items),
             gemini_price_warnings=response.gemini_analysis.price_warnings,
+            gemini_validation_warnings=response.gemini_analysis.validation_warnings,
             clip_scene_score=response.clip_analysis.scene_relevance_score,
             duplicate_detected=response.clip_analysis.duplicate_detected,
             timestamp=response.timestamp,

@@ -187,6 +187,11 @@ public class ProofServiceImpl implements ProofService {
 					request.geminiItemsCount() != null ? request.geminiItemsCount() : 0));
 		}
 
+		if (request.geminiValidationWarnings() != null && !request.geminiValidationWarnings().isEmpty()) {
+			analysis.append("\n[Bill Validator] Cảnh báo: ")
+					.append(String.join(" | ", request.geminiValidationWarnings()));
+		}
+
 		if (request.clipSceneScore() != null) {
 			analysis.append(String.format("\n[CLIP] Scene relevance: %.2f", request.clipSceneScore()));
 		}

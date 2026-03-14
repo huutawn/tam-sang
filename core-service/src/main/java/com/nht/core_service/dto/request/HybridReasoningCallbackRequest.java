@@ -52,6 +52,9 @@ public record HybridReasoningCallbackRequest(
 	@JsonProperty("gemini_price_warnings")
 	List<String> geminiPriceWarnings,
 
+	@JsonProperty("gemini_validation_warnings")
+	List<String> geminiValidationWarnings,
+
 	@JsonProperty("clip_scene_score")
 	Double clipSceneScore,
 

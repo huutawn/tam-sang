@@ -47,7 +47,7 @@ def assess_proof(
     bill_score: int,
     scene_score: int,
     duplicate_detected: bool,
-    price_warning_count: int,
+    bill_warning_count: int,
     serves_campaign_goal: bool,
     rubric: ProofScoringRubric = DEFAULT_RUBRIC,
 ) -> ProofScoreBreakdown:
@@ -67,12 +67,12 @@ def assess_proof(
 
     duplicate_penalty = rubric.duplicate_penalty if duplicate_detected else 0
     price_penalty = min(
-        price_warning_count * rubric.price_warning_penalty_per_warning,
+        bill_warning_count * rubric.price_warning_penalty_per_warning,
         rubric.max_price_warning_penalty,
     )
     clean_bonus = (
         rubric.clean_submission_bonus
-        if not duplicate_detected and price_warning_count == 0 and serves_campaign_goal
+        if not duplicate_detected and bill_warning_count == 0 and serves_campaign_goal
         else 0
     )
 
