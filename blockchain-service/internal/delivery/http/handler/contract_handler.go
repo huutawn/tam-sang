@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"blockchain-service/internal/domain"
 	"blockchain-service/internal/usecase"
@@ -147,21 +149,22 @@ func (h *ContractHandler) GetContract(c *gin.Context) {
 		Code:    0,
 		Message: "Contract retrieved successfully",
 		Result: map[string]interface{}{
-			"id":             contract.ID.String(),
-			"campaign_id":    contract.CampaignID,
-			"campaign_name":  contract.CampaignName,
-			"description":    contract.Description,
-			"organizer_name": contract.OrganizerName,
-			"organizer_id":   contract.OrganizerID,
-			"target_amount":  contract.TargetAmount,
-			"currency":       contract.Currency,
-			"content_hash":   contract.ContentHash,
-			"signature_alg":  contract.SignatureAlg,
-			"public_key_id":  contract.PublicKeyID,
-			"signed_at":      contract.SignedAt,
-			"start_date":     contract.StartDate,
-			"end_date":       contract.EndDate,
-			"created_at":     contract.CreatedAt,
+			"id":                  contract.ID.String(),
+			"campaign_id":         contract.CampaignID,
+			"campaign_name":       contract.CampaignName,
+			"description":         contract.Description,
+			"organizer_name":      contract.OrganizerName,
+			"organizer_id":        contract.OrganizerID,
+			"organizer_id_number": contract.OrganizerIDNumber,
+			"target_amount":       contract.TargetAmount,
+			"currency":            contract.Currency,
+			"content_hash":        contract.ContentHash,
+			"signature_alg":       contract.SignatureAlg,
+			"public_key_id":       contract.PublicKeyID,
+			"signed_at":           contract.SignedAt,
+			"start_date":          contract.StartDate,
+			"end_date":            contract.EndDate,
+			"created_at":          contract.CreatedAt,
 		},
 	})
 }
@@ -248,9 +251,9 @@ func (h *ContractHandler) DownloadContract(c *gin.Context) {
 		return
 	}
 
-	filename := "contract_" + contract.CampaignID + ".pdf"
-	c.Header("Content-Disposition", "attachment; filename="+filename)
+	filename := fmt.Sprintf("thoa_thuan_chien_dich_%s.pdf", contract.CampaignID)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Header("Content-Type", "application/pdf")
-	c.Header("Content-Length", string(rune(len(contract.Content))))
+	c.Header("Content-Length", strconv.Itoa(len(contract.Content)))
 	c.Data(http.StatusOK, "application/pdf", contract.Content)
 }

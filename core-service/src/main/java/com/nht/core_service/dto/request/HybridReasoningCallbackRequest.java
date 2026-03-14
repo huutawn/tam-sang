@@ -58,6 +58,15 @@ public record HybridReasoningCallbackRequest(
 	@JsonProperty("clip_scene_score")
 	Double clipSceneScore,
 
+	@JsonProperty("clip_scene_support_score")
+	Double clipSceneSupportScore,
+
+	@JsonProperty("clip_forensic_score")
+	Integer clipForensicScore,
+
+	@JsonProperty("clip_forensic_warnings")
+	List<String> clipForensicWarnings,
+
 	@JsonProperty("duplicate_detected")
 	Boolean duplicateDetected,
 

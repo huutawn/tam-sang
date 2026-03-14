@@ -8,24 +8,25 @@ import (
 
 // Contract represents a digitally signed campaign contract
 type Contract struct {
-	ID            uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	CampaignID    string    `gorm:"type:varchar(100);not null;index"`
-	CampaignName  string    `gorm:"size:255;not null"`
-	Description   string    `gorm:"type:text"`
-	OrganizerName string    `gorm:"size:255;not null"`
-	OrganizerID   string    `gorm:"size:100"`
-	TargetAmount  float64   `gorm:"type:decimal(20,2)"`
-	Currency      string    `gorm:"size:10;default:'VND'"`
-	Content       []byte    `gorm:"type:bytea"`         // Signed PDF content
-	ContentHash   string    `gorm:"size:64;not null"`   // SHA-256 hash of PDF
-	Signature     string    `gorm:"type:text;not null"` // Digital signature (base64)
-	SignatureAlg  string    `gorm:"size:20;not null"`   // RSA or ECDSA
-	PublicKeyID   string    `gorm:"size:100"`           // Reference to the public key used
-	SignedAt      time.Time `gorm:"not null"`
-	StartDate     time.Time
-	EndDate       time.Time
-	CreatedAt     time.Time `gorm:"autoCreateTime"`
-	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
+	ID                uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	CampaignID        string    `gorm:"type:varchar(100);not null;index"`
+	CampaignName      string    `gorm:"size:255;not null"`
+	Description       string    `gorm:"type:text"`
+	OrganizerName     string    `gorm:"size:255;not null"`
+	OrganizerID       string    `gorm:"size:100"`
+	OrganizerIDNumber string    `gorm:"size:100"`
+	TargetAmount      float64   `gorm:"type:decimal(20,2)"`
+	Currency          string    `gorm:"size:10;default:'VND'"`
+	Content           []byte    `gorm:"type:bytea"`         // Signed PDF content
+	ContentHash       string    `gorm:"size:64;not null"`   // SHA-256 hash of PDF
+	Signature         string    `gorm:"type:text;not null"` // Digital signature (base64)
+	SignatureAlg      string    `gorm:"size:20;not null"`   // RSA or ECDSA
+	PublicKeyID       string    `gorm:"size:100"`           // Reference to the public key used
+	SignedAt          time.Time `gorm:"not null"`
+	StartDate         time.Time
+	EndDate           time.Time
+	CreatedAt         time.Time `gorm:"autoCreateTime"`
+	UpdatedAt         time.Time `gorm:"autoUpdateTime"`
 }
 
 // TableName returns the table name for GORM

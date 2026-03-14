@@ -96,18 +96,31 @@ func (s *ContractSigner) SignContract(ctx context.Context, req *domain.ContractC
 		currency = "VND"
 	}
 
+	contractID := uuid.New()
+	signedAt := time.Now()
+
+	signatureAlg := "ECDSA-SHA256"
+	if s.config.SigningAlgorithm == "RSA" {
+		signatureAlg = "RSA-SHA256"
+	}
+
 	// Generate PDF contract
 	pdfData := &pdf.ContractData{
-		CampaignID:    req.CampaignID,
-		CampaignName:  req.CampaignName,
-		Description:   req.Description,
-		OrganizerName: req.OrganizerName,
-		OrganizerID:   req.OrganizerID,
-		TargetAmount:  req.TargetAmount,
-		Currency:      currency,
-		StartDate:     startDate,
-		EndDate:       endDate,
-		CreatedAt:     time.Now(),
+		ContractID:         contractID.String(),
+		CampaignID:         req.CampaignID,
+		CampaignName:       req.CampaignName,
+		Description:        req.Description,
+		OrganizerName:      req.OrganizerName,
+		OrganizerID:        req.OrganizerID,
+		OrganizerIDNumber:  req.OrganizerIDNumber,
+		TargetAmount:       req.TargetAmount,
+		Currency:           currency,
+		StartDate:          startDate,
+		EndDate:            endDate,
+		CreatedAt:          time.Now(),
+		SignedAt:           signedAt,
+		SignatureAlgorithm: signatureAlg,
+		PublicKeyID:        "primary-key",
 	}
 
 	pdfContent, err := s.pdfGenerator.GenerateContract(pdfData)
@@ -121,7 +134,6 @@ func (s *ContractSigner) SignContract(ctx context.Context, req *domain.ContractC
 
 	// Sign the hash
 	var signature string
-	var signatureAlg string
 
 	switch s.config.SigningAlgorithm {
 	case "RSA":
@@ -129,7 +141,6 @@ func (s *ContractSigner) SignContract(ctx context.Context, req *domain.ContractC
 			return nil, fmt.Errorf("RSA signer not initialized")
 		}
 		signature, err = s.rsaSigner.Sign(pdfContent)
-		signatureAlg = "RSA-SHA256"
 	case "ECDSA":
 		fallthrough
 	default:
@@ -137,7 +148,6 @@ func (s *ContractSigner) SignContract(ctx context.Context, req *domain.ContractC
 			return nil, fmt.Errorf("ECDSA signer not initialized")
 		}
 		signature, err = s.ecdsaSigner.Sign(pdfContent)
-		signatureAlg = "ECDSA-SHA256"
 	}
 
 	if err != nil {
@@ -145,24 +155,24 @@ func (s *ContractSigner) SignContract(ctx context.Context, req *domain.ContractC
 	}
 
 	// Create contract entity
-	signedAt := time.Now()
 	contract := &domain.Contract{
-		ID:            uuid.New(),
-		CampaignID:    campaignID,
-		CampaignName:  req.CampaignName,
-		Description:   req.Description,
-		OrganizerName: req.OrganizerName,
-		OrganizerID:   req.OrganizerID,
-		TargetAmount:  req.TargetAmount,
-		Currency:      currency,
-		Content:       pdfContent,
-		ContentHash:   contentHash,
-		Signature:     signature,
-		SignatureAlg:  signatureAlg,
-		PublicKeyID:   "primary-key", // Could be made configurable for key rotation
-		SignedAt:      signedAt,
-		StartDate:     startDate,
-		EndDate:       endDate,
+		ID:                contractID,
+		CampaignID:        campaignID,
+		CampaignName:      req.CampaignName,
+		Description:       req.Description,
+		OrganizerName:     req.OrganizerName,
+		OrganizerID:       req.OrganizerID,
+		OrganizerIDNumber: req.OrganizerIDNumber,
+		TargetAmount:      req.TargetAmount,
+		Currency:          currency,
+		Content:           pdfContent,
+		ContentHash:       contentHash,
+		Signature:         signature,
+		SignatureAlg:      signatureAlg,
+		PublicKeyID:       "primary-key", // Could be made configurable for key rotation
+		SignedAt:          signedAt,
+		StartDate:         startDate,
+		EndDate:           endDate,
 	}
 
 	// Save contract

@@ -1,0 +1,137 @@
+[
+  {
+    "id": "clean_verified_high_confidence",
+    "description": "Hoa don ro rang, scene phu hop, khong canh bao.",
+    "inputs": {
+      "bill_score": 92,
+      "scene_score": 88,
+      "duplicate_risk_level": "none",
+      "bill_warning_count": 0,
+      "forensic_warning_count": 0,
+      "serves_campaign_goal": true
+    },
+    "expected_decision": "VERIFIED",
+    "expected_score_min": 82,
+    "expected_score_max": 82
+  },
+  {
+    "id": "borderline_verified_clean",
+    "description": "Case sat nguong verified de kiem tra bonus submission sach.",
+    "inputs": {
+      "bill_score": 90,
+      "scene_score": 84,
+      "duplicate_risk_level": "none",
+      "bill_warning_count": 0,
+      "forensic_warning_count": 0,
+      "serves_campaign_goal": true
+    },
+    "expected_decision": "VERIFIED",
+    "expected_score_min": 80,
+    "expected_score_max": 80
+  },
+  {
+    "id": "manual_review_due_to_bill_and_forensic_warnings",
+    "description": "Bang chung tot nhung co mot vai canh bao nen can review thu cong.",
+    "inputs": {
+      "bill_score": 80,
+      "scene_score": 84,
+      "duplicate_risk_level": "none",
+      "bill_warning_count": 2,
+      "forensic_warning_count": 1,
+      "serves_campaign_goal": true
+    },
+    "expected_decision": "NEEDS_REVIEW",
+    "expected_score_min": 55,
+    "expected_score_max": 55
+  },
+  {
+    "id": "manual_review_medium_duplicate_risk",
+    "description": "Bang chung tot nhung phat hien near-duplicate muc trung binh.",
+    "inputs": {
+      "bill_score": 93,
+      "scene_score": 89,
+      "duplicate_risk_level": "medium",
+      "bill_warning_count": 0,
+      "forensic_warning_count": 0,
+      "serves_campaign_goal": true
+    },
+    "expected_decision": "NEEDS_REVIEW",
+    "expected_score_min": 58,
+    "expected_score_max": 58
+  },
+  {
+    "id": "manual_review_unknown_duplicate_signal",
+    "description": "Co loi lookup duplicate nen he thong phat review thay vi reject.",
+    "inputs": {
+      "bill_score": 84,
+      "scene_score": 80,
+      "duplicate_risk_level": "unknown",
+      "bill_warning_count": 0,
+      "forensic_warning_count": 0,
+      "serves_campaign_goal": true
+    },
+    "expected_decision": "NEEDS_REVIEW",
+    "expected_score_min": 60,
+    "expected_score_max": 60
+  },
+  {
+    "id": "suspicious_high_duplicate_risk",
+    "description": "Exact hash hoac duplicate risk cao phai bi gan co ngay.",
+    "inputs": {
+      "bill_score": 95,
+      "scene_score": 90,
+      "duplicate_risk_level": "high",
+      "bill_warning_count": 0,
+      "forensic_warning_count": 0,
+      "serves_campaign_goal": true
+    },
+    "expected_decision": "SUSPICIOUS",
+    "expected_score_min": 44,
+    "expected_score_max": 44
+  },
+  {
+    "id": "suspicious_campaign_mismatch",
+    "description": "Bill va scene co diem nhung khong phuc vu muc tieu chien dich.",
+    "inputs": {
+      "bill_score": 88,
+      "scene_score": 82,
+      "duplicate_risk_level": "none",
+      "bill_warning_count": 0,
+      "forensic_warning_count": 0,
+      "serves_campaign_goal": false
+    },
+    "expected_decision": "SUSPICIOUS",
+    "expected_score_min": 73,
+    "expected_score_max": 73
+  },
+  {
+    "id": "suspicious_low_evidence",
+    "description": "Hoa don va scene deu yeu, kem nhieu canh bao.",
+    "inputs": {
+      "bill_score": 45,
+      "scene_score": 50,
+      "duplicate_risk_level": "none",
+      "bill_warning_count": 1,
+      "forensic_warning_count": 2,
+      "serves_campaign_goal": true
+    },
+    "expected_decision": "SUSPICIOUS",
+    "expected_score_min": 26,
+    "expected_score_max": 26
+  },
+  {
+    "id": "suspicious_too_many_warnings",
+    "description": "Diem bill va scene kha nhung warning bi phat toi da.",
+    "inputs": {
+      "bill_score": 88,
+      "scene_score": 86,
+      "duplicate_risk_level": "none",
+      "bill_warning_count": 3,
+      "forensic_warning_count": 3,
+      "serves_campaign_goal": true
+    },
+    "expected_decision": "SUSPICIOUS",
+    "expected_score_min": 47,
+    "expected_score_max": 47
+  }
+]

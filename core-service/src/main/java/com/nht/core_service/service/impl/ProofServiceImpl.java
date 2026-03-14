@@ -196,6 +196,19 @@ public class ProofServiceImpl implements ProofService {
 			analysis.append(String.format("\n[CLIP] Scene relevance: %.2f", request.clipSceneScore()));
 		}
 
+		if (request.clipSceneSupportScore() != null) {
+			analysis.append(String.format("\n[Scene Support] %.2f", request.clipSceneSupportScore()));
+		}
+
+		if (request.clipForensicScore() != null) {
+			analysis.append("\n[Forensic] Score: ").append(request.clipForensicScore()).append("/100");
+		}
+
+		if (request.clipForensicWarnings() != null && !request.clipForensicWarnings().isEmpty()) {
+			analysis.append("\n[Forensic] Cảnh báo: ")
+					.append(String.join(" | ", request.clipForensicWarnings()));
+		}
+
 		if (Boolean.TRUE.equals(request.duplicateDetected())) {
 			analysis.append("\n⚠️ Phát hiện ảnh trùng lặp!");
 		}

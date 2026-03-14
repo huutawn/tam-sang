@@ -1,6 +1,8 @@
 .idea
 .vscode
 .git
+.gocache/
+.m2-temp/
 *.iml
 *.md
 *.log

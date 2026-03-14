@@ -1,0 +1,15 @@
+{
+  "rubric_version": "day5-experiment",
+  "bill_analysis_weight": 0.62,
+  "scene_support_weight": 0.23,
+  "clean_submission_bonus": 4,
+  "duplicate_penalty_low": 12,
+  "duplicate_penalty_medium": 22,
+  "duplicate_penalty_high": 38,
+  "bill_warning_penalty_per_warning": 5,
+  "max_bill_warning_penalty": 15,
+  "forensic_warning_penalty_per_warning": 4,
+  "max_forensic_warning_penalty": 12,
+  "verified_threshold": 80,
+  "review_threshold": 55
+}

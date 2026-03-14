@@ -32,8 +32,8 @@ async def lifespan(app: FastAPI):
         await eureka_client.init_async(
             eureka_server=settings.eureka_url,
             app_name=settings.service_name,
-            instance_port=8084,
-            instance_host="localhost", # Or get from env if running in Docker
+            instance_port=settings.service_port,
+            instance_host=settings.service_instance_host,
         )
         logger.info(f"Registered with Eureka at {settings.eureka_url}")
     except Exception as e:
@@ -102,5 +102,5 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8084)
+    uvicorn.run(app, host=settings.service_host, port=settings.service_port)
 

@@ -1,251 +1,301 @@
 """
-Vector Database Service for pgvector operations
+Vector database service for CLIP embeddings and duplicate lookup.
 
-Handles storing and querying CLIP embeddings in PostgreSQL with pgvector extension.
-Used for image deduplication and cross-modal retrieval.
+Day 3 focus:
+- keep CLIP embeddings as one signal
+- add perceptual-hash exact/near matching
+- return a richer duplicate verdict instead of a single boolean
 """
 
 import logging
-import asyncio
+from dataclasses import dataclass
 from typing import List, Optional, Tuple
 from uuid import UUID
+
 import asyncpg
 from pgvector.asyncpg import register_vector
 
 from app.config import settings
+from app.services.image_forensics import image_forensics_service
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class DuplicateLookupResult:
+    is_duplicate: bool = False
+    match_type: str = "none"
+    risk_level: str = "none"
+    matching_url: Optional[str] = None
+    similarity: Optional[float] = None
+    perceptual_similarity: Optional[float] = None
+    notes: str = ""
+
+
 class VectorDBService:
-    """
-    Service for interacting with pgvector database
-    
-    Features:
-    - Store CLIP embeddings for proof images
-    - Find similar images (deduplication)
-    - Query embeddings by campaign
-    """
-    
+    """Store CLIP embeddings and query global duplicate evidence."""
+
+    HASH_RECENT_LOOKUP_LIMIT = 200
+    HASH_NEAR_DUPLICATE_THRESHOLD = 0.92
+    EMBEDDING_MEDIUM_DUPLICATE_THRESHOLD = 0.985
+    EMBEDDING_HIGH_DUPLICATE_THRESHOLD = 0.995
+
     def __init__(self):
         self.pool: Optional[asyncpg.Pool] = None
         self._initialized = False
         logger.info("VectorDBService instance created")
-    
+
     async def initialize(self):
-        """Initialize database connection pool"""
+        """Initialize database connection pool."""
         if self._initialized:
             return
-            
-        try:
-            logger.info(f"Connecting to pgvector database: {settings.vector_db_host}:{settings.vector_db_port}/{settings.vector_db_name}")
-            
-            self.pool = await asyncpg.create_pool(
-                host=settings.vector_db_host,
-                port=settings.vector_db_port,
-                database=settings.vector_db_name,
-                user=settings.vector_db_user,
-                password=settings.vector_db_password,
-                min_size=2,
-                max_size=10,
-                init=self._init_connection
-            )
-            
-            self._initialized = True
-            logger.info("VectorDBService initialized successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize VectorDBService: {e}")
-            raise
-    
+
+        logger.info(
+            "Connecting to pgvector database: %s:%s/%s",
+            settings.vector_db_host,
+            settings.vector_db_port,
+            settings.vector_db_name,
+        )
+
+        self.pool = await asyncpg.create_pool(
+            host=settings.vector_db_host,
+            port=settings.vector_db_port,
+            database=settings.vector_db_name,
+            user=settings.vector_db_user,
+            password=settings.vector_db_password,
+            min_size=2,
+            max_size=10,
+            init=self._init_connection,
+        )
+
+        self._initialized = True
+        logger.info("VectorDBService initialized successfully")
+
     async def _init_connection(self, conn: asyncpg.Connection):
-        """Initialize pgvector extension for each connection"""
         await register_vector(conn)
-    
+
     async def close(self):
-        """Close database connection pool"""
         if self.pool:
             await self.pool.close()
             self._initialized = False
             logger.info("VectorDBService connection pool closed")
-    
+
     async def store_embedding(
         self,
         campaign_id: UUID,
         image_url: str,
         embedding: List[float],
-        perceptual_hash: Optional[str] = None
+        perceptual_hash: Optional[str] = None,
     ) -> UUID:
-        """
-        Store a CLIP embedding for a proof image
-        
-        Args:
-            campaign_id: Campaign UUID
-            image_url: URL of the image
-            embedding: CLIP embedding vector (512 dimensions)
-            perceptual_hash: Optional perceptual hash for fast lookup
-            
-        Returns:
-            UUID of the stored embedding record
-        """
         if not self._initialized:
             await self.initialize()
-        
-        try:
-            async with self.pool.acquire() as conn:
-                result = await conn.fetchrow(
-                    """
-                    INSERT INTO proof_embeddings (campaign_id, image_url, embedding, perceptual_hash)
-                    VALUES ($1, $2, $3, $4)
-                    RETURNING id
-                    """,
-                    campaign_id,
-                    image_url,
-                    embedding,
-                    perceptual_hash
-                )
-                
-                embedding_id = result['id']
-                logger.info(f"Stored embedding {embedding_id} for campaign {campaign_id}")
-                return embedding_id
-                
-        except Exception as e:
-            logger.error(f"Failed to store embedding: {e}")
-            raise
-    
+
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchrow(
+                """
+                INSERT INTO proof_embeddings (campaign_id, image_url, embedding, perceptual_hash)
+                VALUES ($1, $2, $3, $4)
+                RETURNING id
+                """,
+                campaign_id,
+                image_url,
+                embedding,
+                perceptual_hash,
+            )
+
+            embedding_id = result["id"]
+            logger.info("Stored embedding %s for campaign %s", embedding_id, campaign_id)
+            return embedding_id
+
     async def find_similar(
         self,
         embedding: List[float],
-        threshold: float = None,
+        threshold: float | None = None,
         limit: int = 5,
-        exclude_campaign_id: Optional[UUID] = None
+        exclude_campaign_id: Optional[UUID] = None,
     ) -> List[Tuple[UUID, str, float]]:
-        """
-        Find similar images using cosine similarity
-        
-        Args:
-            embedding: Query embedding vector
-            threshold: Similarity threshold (default from settings)
-            limit: Maximum number of results
-            exclude_campaign_id: Optionally exclude a specific campaign
-            
-        Returns:
-            List of (id, image_url, similarity_score) tuples
-        """
         if not self._initialized:
             await self.initialize()
-        
+
         threshold = threshold or settings.similarity_threshold
-        
-        try:
-            async with self.pool.acquire() as conn:
-                if exclude_campaign_id:
-                    results = await conn.fetch(
-                        """
-                        SELECT id, image_url, 1 - (embedding <=> $1) as similarity
-                        FROM proof_embeddings
-                        WHERE campaign_id != $2
-                        AND 1 - (embedding <=> $1) >= $3
-                        ORDER BY similarity DESC
-                        LIMIT $4
-                        """,
-                        embedding,
-                        exclude_campaign_id,
-                        threshold,
-                        limit
-                    )
-                else:
-                    results = await conn.fetch(
-                        """
-                        SELECT id, image_url, 1 - (embedding <=> $1) as similarity
-                        FROM proof_embeddings
-                        WHERE 1 - (embedding <=> $1) >= $2
-                        ORDER BY similarity DESC
-                        LIMIT $3
-                        """,
-                        embedding,
-                        threshold,
-                        limit
-                    )
-                
-                similar_images = [
-                    (row['id'], row['image_url'], float(row['similarity']))
-                    for row in results
-                ]
-                
-                logger.info(f"Found {len(similar_images)} similar images above threshold {threshold}")
-                return similar_images
-                
-        except Exception as e:
-            logger.error(f"Failed to find similar embeddings: {e}")
-            raise
-    
+
+        async with self.pool.acquire() as conn:
+            if exclude_campaign_id:
+                results = await conn.fetch(
+                    """
+                    SELECT id, image_url, 1 - (embedding <=> $1) as similarity
+                    FROM proof_embeddings
+                    WHERE campaign_id != $2
+                      AND 1 - (embedding <=> $1) >= $3
+                    ORDER BY similarity DESC
+                    LIMIT $4
+                    """,
+                    embedding,
+                    exclude_campaign_id,
+                    threshold,
+                    limit,
+                )
+            else:
+                results = await conn.fetch(
+                    """
+                    SELECT id, image_url, 1 - (embedding <=> $1) as similarity
+                    FROM proof_embeddings
+                    WHERE 1 - (embedding <=> $1) >= $2
+                    ORDER BY similarity DESC
+                    LIMIT $3
+                    """,
+                    embedding,
+                    threshold,
+                    limit,
+                )
+
+        similar_images = [
+            (row["id"], row["image_url"], float(row["similarity"]))
+            for row in results
+        ]
+        logger.info("Found %s similar images above threshold %s", len(similar_images), threshold)
+        return similar_images
+
+    async def _find_hash_duplicate(self, perceptual_hash: str) -> DuplicateLookupResult:
+        if not perceptual_hash:
+            return DuplicateLookupResult()
+
+        async with self.pool.acquire() as conn:
+            exact_match = await conn.fetchrow(
+                """
+                SELECT image_url
+                FROM proof_embeddings
+                WHERE perceptual_hash = $1
+                LIMIT 1
+                """,
+                perceptual_hash,
+            )
+            if exact_match:
+                url = exact_match["image_url"]
+                logger.warning("Duplicate detected via exact perceptual hash: %s", url)
+                return DuplicateLookupResult(
+                    is_duplicate=True,
+                    match_type="exact_hash",
+                    risk_level="high",
+                    matching_url=url,
+                    similarity=1.0,
+                    perceptual_similarity=1.0,
+                    notes="Anh trung hash perceptual chinh xac voi du lieu da luu.",
+                )
+
+            recent_hash_rows = await conn.fetch(
+                """
+                SELECT image_url, perceptual_hash
+                FROM proof_embeddings
+                WHERE perceptual_hash IS NOT NULL
+                ORDER BY created_at DESC
+                LIMIT $1
+                """,
+                self.HASH_RECENT_LOOKUP_LIMIT,
+            )
+
+        best_match: Optional[DuplicateLookupResult] = None
+        for row in recent_hash_rows:
+            comparison = image_forensics_service.compare_hashes(
+                perceptual_hash,
+                row["perceptual_hash"],
+            )
+            similarity = comparison["average_similarity"]
+            if not comparison["is_near_duplicate"] or similarity < self.HASH_NEAR_DUPLICATE_THRESHOLD:
+                continue
+
+            candidate = DuplicateLookupResult(
+                is_duplicate=True,
+                match_type="near_hash",
+                risk_level="medium",
+                matching_url=row["image_url"],
+                similarity=similarity,
+                perceptual_similarity=similarity,
+                notes=f"Anh co perceptual-hash rat gan du lieu cu ({similarity:.2%}).",
+            )
+            if best_match is None or (candidate.similarity or 0.0) > (best_match.similarity or 0.0):
+                best_match = candidate
+
+        if best_match:
+            logger.warning(
+                "Near-duplicate detected via perceptual hash (similarity=%.4f): %s",
+                best_match.similarity or 0.0,
+                best_match.matching_url,
+            )
+            return best_match
+
+        return DuplicateLookupResult()
+
     async def check_duplicate(
         self,
         embedding: List[float],
-        perceptual_hash: Optional[str] = None
-    ) -> Tuple[bool, Optional[str]]:
+        perceptual_hash: Optional[str] = None,
+    ) -> DuplicateLookupResult:
         """
-        Check if an image is a duplicate
-        
-        Uses both perceptual hash (fast) and embedding similarity (accurate)
-        
-        Args:
-            embedding: CLIP embedding of the image
-            perceptual_hash: Optional perceptual hash for fast check
-            
-        Returns:
-            Tuple of (is_duplicate: bool, matching_url: Optional[str])
+        Check if an image is a duplicate using multiple signals.
+
+        Priority:
+        1. exact/near perceptual hash
+        2. very high embedding similarity
         """
         if not self._initialized:
             await self.initialize()
-        
+
         try:
-            async with self.pool.acquire() as conn:
-                # Fast check using perceptual hash
-                if perceptual_hash:
-                    hash_match = await conn.fetchrow(
-                        """
-                        SELECT image_url FROM proof_embeddings
-                        WHERE perceptual_hash = $1
-                        LIMIT 1
-                        """,
-                        perceptual_hash
-                    )
-                    if hash_match:
-                        logger.warning(f"Duplicate detected via perceptual hash: {hash_match['image_url']}")
-                        return True, hash_match['image_url']
-                
-                # Accurate check using embedding similarity (threshold 0.98 for near-exact match)
-                similar = await self.find_similar(embedding, threshold=0.98, limit=1)
-                if similar:
-                    _, url, similarity = similar[0]
-                    logger.warning(f"Duplicate detected via embedding (similarity={similarity:.4f}): {url}")
-                    return True, url
-                
-                return False, None
-                
-        except Exception as e:
-            logger.error(f"Failed to check duplicate: {e}")
-            return False, None
-    
+            hash_duplicate = await self._find_hash_duplicate(perceptual_hash or "")
+            if hash_duplicate.is_duplicate:
+                return hash_duplicate
+
+            similar = await self.find_similar(
+                embedding,
+                threshold=self.EMBEDDING_MEDIUM_DUPLICATE_THRESHOLD,
+                limit=1,
+            )
+            if similar:
+                _, url, similarity = similar[0]
+                risk_level = (
+                    "high"
+                    if similarity >= self.EMBEDDING_HIGH_DUPLICATE_THRESHOLD
+                    else "medium"
+                )
+                logger.warning(
+                    "Duplicate detected via CLIP embedding (similarity=%.4f): %s",
+                    similarity,
+                    url,
+                )
+                return DuplicateLookupResult(
+                    is_duplicate=True,
+                    match_type="embedding",
+                    risk_level=risk_level,
+                    matching_url=url,
+                    similarity=similarity,
+                    notes=f"Embedding CLIP rat gan voi du lieu cu ({similarity:.2%}).",
+                )
+
+            return DuplicateLookupResult()
+        except Exception as exc:
+            logger.error("Failed to check duplicate: %s", exc)
+            return DuplicateLookupResult(
+                is_duplicate=False,
+                match_type="error",
+                risk_level="unknown",
+                notes=f"Loi duplicate lookup: {exc}",
+            )
+
     async def get_campaign_embedding_count(self, campaign_id: UUID) -> int:
-        """Get the number of embeddings stored for a campaign"""
         if not self._initialized:
             await self.initialize()
-        
+
         try:
             async with self.pool.acquire() as conn:
                 result = await conn.fetchval(
                     "SELECT COUNT(*) FROM proof_embeddings WHERE campaign_id = $1",
-                    campaign_id
+                    campaign_id,
                 )
                 return result
-                
-        except Exception as e:
-            logger.error(f"Failed to get embedding count: {e}")
+        except Exception as exc:
+            logger.error("Failed to get embedding count: %s", exc)
             return 0
 
 
-# Singleton instance
 vector_db_service = VectorDBService()

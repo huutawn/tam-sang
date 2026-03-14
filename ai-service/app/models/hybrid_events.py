@@ -88,14 +88,19 @@ class ImageRelevanceResult(BaseModel):
     similarity: float = Field(ge=0.0, le=1.0)
     is_relevant: bool
     reasoning: str
+    authenticity_score: int = Field(default=100, ge=0, le=100)
 
 
 class DuplicateCheckResult(BaseModel):
     """Result for duplicate image check."""
 
     is_duplicate: bool
+    match_type: str = "none"
+    risk_level: str = "none"
     matching_url: Optional[str] = None
     similarity: Optional[float] = None
+    perceptual_similarity: Optional[float] = None
+    notes: str = ""
 
 
 class ClipAnalysisResult(BaseModel):
@@ -107,9 +112,25 @@ class ClipAnalysisResult(BaseModel):
         le=1.0,
         description="Average relevance score for scene images",
     )
+    scene_support_score: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Combined scene support score after relevance + forensics",
+    )
+    forensic_score: int = Field(
+        default=0,
+        ge=0,
+        le=100,
+        description="Average authenticity score from metadata/hash evidence",
+    )
     image_results: List[ImageRelevanceResult] = Field(
         default_factory=list,
         description="Individual image analysis results",
+    )
+    forensic_warnings: List[str] = Field(
+        default_factory=list,
+        description="Tong hop cac canh bao forensic",
     )
     duplicate_detected: bool = Field(default=False, description="Co phat hien anh trung lap")
     duplicate_details: List[DuplicateCheckResult] = Field(
@@ -124,8 +145,8 @@ class HybridReasoningResponse(BaseModel):
     proof_id: str = Field(..., description="ID cua proof")
     trust_score: int = Field(default=0, ge=0, le=100, description="Diem tin cay tong hop 0-100")
     is_valid: bool = Field(default=False, description="Minh chung hop le hay khong")
-    decision: str = Field(default="SUSPICIOUS", description="Ket luan cua rubric Day 1")
-    rubric_version: str = Field(default="day1-v1", description="Phien ban rubric cham diem")
+    decision: str = Field(default="SUSPICIOUS", description="Ket luan cua rubric Day 3")
+    rubric_version: str = Field(default="day3-v1", description="Phien ban rubric cham diem")
     clip_analysis: ClipAnalysisResult = Field(
         default_factory=ClipAnalysisResult,
         description="Ket qua phan tich scene",
@@ -174,13 +195,16 @@ class CallbackPayload(BaseModel):
     is_valid: bool
     analysis_summary: str
     decision: str = "SUSPICIOUS"
-    rubric_version: str = "day1-v1"
+    rubric_version: str = "day3-v1"
     trust_hash: str
     gemini_total_amount: float = 0.0
     gemini_items_count: int = 0
-    gemini_price_warnings: List[str] = []
-    gemini_validation_warnings: List[str] = []
+    gemini_price_warnings: List[str] = Field(default_factory=list)
+    gemini_validation_warnings: List[str] = Field(default_factory=list)
     clip_scene_score: float = 0.0
+    clip_scene_support_score: float = 0.0
+    clip_forensic_score: int = 0
+    clip_forensic_warnings: List[str] = Field(default_factory=list)
     duplicate_detected: bool = False
     timestamp: datetime
 
@@ -199,6 +223,9 @@ class CallbackPayload(BaseModel):
             gemini_price_warnings=response.gemini_analysis.price_warnings,
             gemini_validation_warnings=response.gemini_analysis.validation_warnings,
             clip_scene_score=response.clip_analysis.scene_relevance_score,
+            clip_scene_support_score=response.clip_analysis.scene_support_score,
+            clip_forensic_score=response.clip_analysis.forensic_score,
+            clip_forensic_warnings=response.clip_analysis.forensic_warnings,
             duplicate_detected=response.clip_analysis.duplicate_detected,
             timestamp=response.timestamp,
         )

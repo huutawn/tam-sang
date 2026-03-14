@@ -47,7 +47,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     service_name: str = "ai-service"
     service_version: str = "1.0.0"
-    
+    service_host: str = "0.0.0.0"
+    service_port: int = 8084
+    service_instance_host: str = "localhost"
+
     # Eureka Registration
     eureka_url: str = "http://localhost:8761/eureka"
 

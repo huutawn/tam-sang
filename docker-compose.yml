@@ -271,7 +271,7 @@ services:
   #   image: tawn/ai-service:latest
   #   container_name: tamsang-ai-service
   #   ports:
-  #     - "8000:8000"
+  #     - "8084:8084"
   #   depends_on:
   #     api-gateway:
   #       condition: service_healthy
