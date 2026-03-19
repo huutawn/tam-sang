@@ -6,7 +6,7 @@ schema tolerant to both legacy camelCase payloads and the new snake_case
 canonical format.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import json
 from typing import List, Optional
@@ -54,7 +54,7 @@ class HybridReasoningRequest(BaseModel):
 
     def __init__(self, **data):
         if "timestamp" not in data or data["timestamp"] is None:
-            data["timestamp"] = datetime.now()
+            data["timestamp"] = datetime.now(timezone.utc)
         super().__init__(**data)
 
 
@@ -75,7 +75,14 @@ class GeminiAnalysisResult(BaseModel):
     items: List[BillItem] = Field(default_factory=list, description="Danh sach hang hoa")
     price_warnings: List[str] = Field(default_factory=list, description="Canh bao don gia bat thuong")
     validation_warnings: List[str] = Field(default_factory=list, description="Canh bao validator cuc bo")
-    serves_campaign_goal: bool = Field(default=True, description="Phuc vu muc tieu chien dich")
+    serves_campaign_goal: bool | None = Field(
+        default=None,
+        description="Hoa don co phuc vu muc tieu chien dich hay khong; None neu chua du du lieu",
+    )
+    bill_structurally_valid: bool = Field(
+        default=False,
+        description="Hoa don co du du lieu co ban de validator local ket luan hay khong",
+    )
     reasoning: str = Field(default="", description="Ly do danh gia")
     trust_score: int = Field(default=0, ge=0, le=100, description="Diem tin cay 0-100")
 
@@ -164,7 +171,7 @@ class HybridReasoningResponse(BaseModel):
 
     def __init__(self, **data):
         if "timestamp" not in data or data["timestamp"] is None:
-            data["timestamp"] = datetime.now()
+            data["timestamp"] = datetime.now(timezone.utc)
         super().__init__(**data)
 
         if not self.trust_hash:

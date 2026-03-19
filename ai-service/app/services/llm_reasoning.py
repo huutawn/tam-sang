@@ -1,10 +1,12 @@
 import asyncio
 import json
 import logging
+import math
 from io import BytesIO
 from typing import Any, Dict
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from PIL import Image
 
 from app.config import settings
@@ -24,8 +26,8 @@ class LlmReasoningService:
     def __init__(self):
         if settings.gemini_api_key and not settings.enable_gemini_mock:
             try:
-                genai.configure(api_key=settings.gemini_api_key)
-                self.model = genai.GenerativeModel("gemini-flash-latest")
+                self.client = genai.Client(api_key=settings.gemini_api_key)
+                self.model_name = "gemini-flash-latest"
                 self.mock_mode = False
                 logger.info("Gemini API initialized successfully")
             except Exception as e:
@@ -35,6 +37,99 @@ class LlmReasoningService:
         else:
             self.mock_mode = True
             logger.info("LLM Reasoning Service initialized in MOCK mode")
+
+    def _image_part_from_bytes(self, image_bytes: bytes) -> types.Part:
+        with Image.open(BytesIO(image_bytes)) as image:
+            mime_type = Image.MIME.get(image.format or "", "image/jpeg")
+        return types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+
+    def _image_part_from_pil_image(self, image: Image.Image) -> types.Part:
+        buffer = BytesIO()
+        image.save(buffer, format="JPEG", quality=92, optimize=True)
+        return types.Part.from_bytes(data=buffer.getvalue(), mime_type="image/jpeg")
+
+    def _resize_image_for_gemini(self, image: Image.Image, max_side: int = 2200) -> Image.Image:
+        width, height = image.size
+        longest_side = max(width, height)
+        if longest_side <= max_side:
+            return image.copy()
+
+        scale = max_side / float(longest_side)
+        resized_width = max(1, int(round(width * scale)))
+        resized_height = max(1, int(round(height * scale)))
+        return image.resize((resized_width, resized_height), Image.Resampling.LANCZOS)
+
+    def _detect_document_bounds(self, image: Image.Image) -> tuple[int, int, int, int] | None:
+        grayscale = image.convert("L")
+        binary = grayscale.point(lambda value: 255 if value >= 185 else 0)
+        bounds = binary.getbbox()
+        if not bounds:
+            return None
+
+        left, top, right, bottom = bounds
+        image_width, image_height = image.size
+        document_width = right - left
+        document_height = bottom - top
+        area_ratio = (document_width * document_height) / float(max(1, image_width * image_height))
+
+        if area_ratio < 0.08 or document_height <= int(document_width * 1.1):
+            return None
+
+        margin_x = max(24, int(document_width * 0.06))
+        margin_y = max(24, int(document_height * 0.03))
+        return (
+            max(0, left - margin_x),
+            max(0, top - margin_y),
+            min(image_width, right + margin_x),
+            min(image_height, bottom + margin_y),
+        )
+
+    def _vertical_crop_positions(self, image_height: int, crop_height: int, max_crops: int = 3) -> list[int]:
+        if image_height <= crop_height or max_crops <= 1:
+            return [0]
+
+        max_offset = image_height - crop_height
+        if max_offset <= 0:
+            return [0]
+
+        crop_count = min(max_crops, max(2, math.ceil(image_height / float(crop_height))))
+        positions = [int(round(max_offset * index / float(crop_count - 1))) for index in range(crop_count)]
+        unique_positions: list[int] = []
+        for position in positions:
+            if position not in unique_positions:
+                unique_positions.append(position)
+        return unique_positions
+
+    def _build_invoice_image_parts(self, image_bytes: bytes) -> list[types.Part]:
+        with Image.open(BytesIO(image_bytes)) as source_image:
+            image = source_image.convert("RGB")
+
+        detected_bounds = self._detect_document_bounds(image)
+        if detected_bounds:
+            image = image.crop(detected_bounds)
+
+        prepared_image = self._resize_image_for_gemini(image)
+        parts = [self._image_part_from_pil_image(prepared_image)]
+
+        width, height = prepared_image.size
+        if width > 0 and height > int(width * 1.6):
+            crop_height = min(height, max(int(width * 1.85), height // 2))
+            for top in self._vertical_crop_positions(height, crop_height, max_crops=3):
+                bottom = min(height, top + crop_height)
+                cropped = prepared_image.crop((0, top, width, bottom))
+                parts.append(self._image_part_from_pil_image(cropped))
+
+        logger.info(
+            "[Gemini] Prepared %s invoice view(s) (document_crop=%s size=%sx%s)",
+            len(parts),
+            bool(detected_bounds),
+            width,
+            height,
+        )
+        return parts
+
+    def _build_invoice_contents(self, prompt: str, image_bytes: bytes) -> list[Any]:
+        return [prompt, *self._build_invoice_image_parts(image_bytes)]
 
     def _extract_json_text(self, response_text: str) -> str:
         cleaned = response_text.strip()
@@ -60,6 +155,19 @@ class LlmReasoningService:
             return float(text)
         except ValueError:
             return 0.0
+
+    def _to_optional_bool(self, value: Any) -> bool | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return value
+
+        normalized = str(value).strip().lower()
+        if normalized in {"true", "1", "yes"}:
+            return True
+        if normalized in {"false", "0", "no"}:
+            return False
+        return None
 
     def _normalize_detailed_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
         raw_trust_score = self._to_float(result.get("trust_score", 0))
@@ -89,7 +197,7 @@ class LlmReasoningService:
             "total_amount": self._to_float(result.get("total_amount", 0)),
             "items": normalized_items,
             "price_warnings": [str(x) for x in (result.get("price_warnings", []) or [])],
-            "serves_campaign_goal": bool(result.get("serves_campaign_goal", False)),
+            "serves_campaign_goal": self._to_optional_bool(result.get("serves_campaign_goal")),
             "reasoning": str(result.get("reasoning", "")).strip(),
             "trust_score": max(0, min(100, int(round(raw_trust_score)))),
             "extraction_confidence": max(
@@ -121,18 +229,25 @@ Can phan tich hoa don dua tren:
 - withdrawal_reason: {withdrawal_reason}
 - campaign_goal: {campaign_goal}
 
+Ban se nhan 1 anh tong quan va co the them nhieu crop cua cung 1 hoa don.
+Hay tong hop thong tin tu TAT CA cac anh:
+- uu tien merchant + ngay o phan dau hoa don
+- uu tien "Phai thanh toan" / "Tong thanh toan" o cuoi hoa don
+- khong nham "Tien khach dua", "Tien thoi lai", ma QR hay chuong trinh khuyen mai thanh tong tien
+
 Yeu cau:
 1. Doc ten don vi/merchant tren hoa don.
 2. Doc ngay hoa don.
-3. Doc tong tien cuoi cung phai tra.
+3. Doc tong tien cuoi cung phai tra. Neu hoa don co so "da lam tron", chi chon so do khi khong tim thay muc "Phai thanh toan"/"Tong thanh toan" ro rang hon.
 4. Liet ke tat ca mat hang voi:
    - name
    - quantity
    - unit_price
    - total_price
    - is_reasonable
-5. Danh gia hoa don co phuc vu campaign_goal khong.
+5. Danh gia hoa don co phuc vu campaign_goal khong. Neu khong du du lieu de ket luan, tra ve null.
 6. Danh gia muc do tu tin trich xuat extraction_confidence trong khoang 0..1.
+7. Neu chi doc duoc mot phan, van tra ve cac truong doc duoc thay vi de rong tat ca.
 
 Tra ve JSON dung format:
 {{
@@ -150,7 +265,7 @@ Tra ve JSON dung format:
     }}
   ],
   "price_warnings": ["string"],
-  "serves_campaign_goal": true,
+  "serves_campaign_goal": true/false/null,
   "reasoning": "giai thich bang tieng Viet",
   "trust_score": 0,
   "extraction_confidence": 0.0
@@ -248,13 +363,14 @@ Chi tra ve JSON."""
                 logger.info("Analyzing invoice (MOCK) - Reason: %s", withdrawal_reason)
                 return self._mock_response(campaign_context, withdrawal_reason)
 
-            image = Image.open(BytesIO(image_bytes))
             prompt = self._create_prompt(campaign_context, withdrawal_reason)
-            loop = asyncio.get_event_loop()
             response = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    lambda: self.model.generate_content([prompt, image]),
+                self.client.aio.models.generate_content(
+                    model=self.model_name,
+                    contents=self._build_invoice_contents(prompt, image_bytes),
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    ),
                 ),
                 timeout=60,
             )
@@ -287,13 +403,14 @@ Chi tra ve JSON."""
                 logger.info("Detailed analysis (MOCK) - Reason: %s", withdrawal_reason)
                 return self._mock_detailed_response(withdrawal_reason, campaign_goal)
 
-            image = Image.open(BytesIO(image_bytes))
             prompt = self._create_detailed_prompt(withdrawal_reason, campaign_goal)
-            loop = asyncio.get_event_loop()
             response = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    lambda: self.model.generate_content([prompt, image]),
+                self.client.aio.models.generate_content(
+                    model=self.model_name,
+                    contents=self._build_invoice_contents(prompt, image_bytes),
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    ),
                 ),
                 timeout=60,
             )
@@ -319,7 +436,7 @@ Chi tra ve JSON."""
                 "total_amount": 0,
                 "items": [],
                 "price_warnings": ["Gemini API timeout"],
-                "serves_campaign_goal": False,
+                "serves_campaign_goal": None,
                 "reasoning": "Gemini API bi timeout sau 60 giay.",
                 "trust_score": 0,
                 "extraction_confidence": 0.0,
@@ -333,7 +450,7 @@ Chi tra ve JSON."""
                 "total_amount": 0,
                 "items": [],
                 "price_warnings": ["Loi parse response tu Gemini"],
-                "serves_campaign_goal": False,
+                "serves_campaign_goal": None,
                 "reasoning": "Loi parse response tu Gemini API.",
                 "trust_score": 30,
                 "extraction_confidence": 0.0,
@@ -347,7 +464,7 @@ Chi tra ve JSON."""
                 "total_amount": 0,
                 "items": [],
                 "price_warnings": [f"Loi: {str(e)}"],
-                "serves_campaign_goal": False,
+                "serves_campaign_goal": None,
                 "reasoning": f"Loi khi phan tich hoa don: {str(e)}",
                 "trust_score": 0,
                 "extraction_confidence": 0.0,

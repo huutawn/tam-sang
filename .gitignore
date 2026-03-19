@@ -87,6 +87,7 @@
 *.pyd
 *.pyc
 *.pyo
+*.m2-temp/
 *.pyd
 *.pyc
 *.pyo

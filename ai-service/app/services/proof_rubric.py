@@ -106,7 +106,7 @@ def assess_proof(
     duplicate_risk_level: DuplicateRiskLevel,
     bill_warning_count: int,
     forensic_warning_count: int,
-    serves_campaign_goal: bool,
+    serves_campaign_goal: bool | None,
     rubric: ProofScoringRubric = DEFAULT_RUBRIC,
 ) -> ProofScoreBreakdown:
     """
@@ -138,7 +138,7 @@ def assess_proof(
         if duplicate_risk_level == "none"
         and bill_warning_count == 0
         and forensic_warning_count == 0
-        and serves_campaign_goal
+        and serves_campaign_goal is True
         else 0
     )
 
@@ -154,8 +154,13 @@ def assess_proof(
         ),
     )
 
-    if not serves_campaign_goal or duplicate_risk_level == "high":
+    if serves_campaign_goal is False or duplicate_risk_level == "high":
         decision: ProofDecision = "SUSPICIOUS"
+    elif serves_campaign_goal is None:
+        if final_score >= rubric.review_threshold:
+            decision = "NEEDS_REVIEW"
+        else:
+            decision = "SUSPICIOUS"
     elif final_score >= rubric.verified_threshold and duplicate_risk_level == "none":
         decision = "VERIFIED"
     elif final_score >= rubric.review_threshold:

@@ -69,7 +69,7 @@ class ImageForensicsService:
             authenticity_score = 100
 
             if not exif:
-                warnings.append("Khong co EXIF goc; day chi la tin hieu yeu, khong du ket luan anh gia.")
+                warnings.append("Không có EXIF gốc; đây chỉ là tín hiệu yếu, không đủ để kết luận ảnh giả.")
                 authenticity_score -= 5
                 return {
                     "has_warning": True,
@@ -80,7 +80,7 @@ class ImageForensicsService:
                     "datetime_original": "",
                     "warnings": warnings,
                     "authenticity_score": max(0, authenticity_score),
-                    "details": "Khong tim thay EXIF.",
+                    "details": "Không tìm thấy EXIF.",
                 }
 
             software = str(exif.get("Software", "") or "").strip()
@@ -99,11 +99,11 @@ class ImageForensicsService:
                         break
 
             if not datetime_original:
-                warnings.append("Khong tim thay thoi diem chup goc trong EXIF.")
+                warnings.append("Không tìm thấy thời điểm chụp gốc trong EXIF.")
                 authenticity_score -= 5
 
             if not make and not model:
-                warnings.append("EXIF co ton tai nhung khong co thong tin thiet bi chup.")
+                warnings.append("EXIF có tồn tại nhưng không có thông tin thiết bị chụp.")
                 authenticity_score -= 5
 
             return {
@@ -126,9 +126,9 @@ class ImageForensicsService:
                 "camera_make": "",
                 "camera_model": "",
                 "datetime_original": "",
-                "warnings": [f"Khong doc duoc metadata anh: {exc}"],
+                "warnings": [f"Không đọc được metadata ảnh: {exc}"],
                 "authenticity_score": 70,
-                "details": f"Loi doc metadata: {exc}",
+                "details": f"Lỗi đọc metadata: {exc}",
             }
         except Exception as exc:
             logger.error("Unexpected metadata inspection error: %s", exc)
@@ -139,9 +139,9 @@ class ImageForensicsService:
                 "camera_make": "",
                 "camera_model": "",
                 "datetime_original": "",
-                "warnings": [f"Loi phan tich metadata: {exc}"],
+                "warnings": [f"Lỗi phân tích metadata: {exc}"],
                 "authenticity_score": 65,
-                "details": f"Loi phan tich metadata: {exc}",
+                "details": f"Lỗi phân tích metadata: {exc}",
             }
 
     def compute_hashes(self, image_bytes: bytes) -> Dict[str, Any]:

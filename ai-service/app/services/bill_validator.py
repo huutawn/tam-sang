@@ -67,24 +67,24 @@ def validate_bill_result(result: Dict[str, Any]) -> BillValidationResult:
     normalized_items: List[Dict[str, Any]] = []
 
     if total_amount <= 0:
-        warnings.append("Khong doc duoc tong tien hop le tren hoa don")
+        warnings.append("Không đọc được tổng tiền hợp lệ trên hóa đơn")
         penalty += 35
         is_structurally_valid = False
 
     if not merchant_name:
-        warnings.append("Thieu ten don vi/phat hanh hoa don")
+        warnings.append("Thiếu tên đơn vị phát hành hóa đơn")
         penalty += 5
 
     if not invoice_date:
-        warnings.append("Thieu ngay hoa don")
+        warnings.append("Thiếu ngày hóa đơn")
         penalty += 5
 
     if extraction_confidence and extraction_confidence < 0.5:
-        warnings.append("Muc do tu tin trich xuat bill thap")
+        warnings.append("Mức độ tự tin khi trích xuất hóa đơn còn thấp")
         penalty += 10
 
     if not raw_items:
-        warnings.append("Khong doc duoc danh sach mat hang")
+        warnings.append("Không đọc được danh sách mặt hàng")
         penalty += 30
         is_structurally_valid = False
 
@@ -98,28 +98,32 @@ def validate_bill_result(result: Dict[str, Any]) -> BillValidationResult:
         is_reasonable = bool(item.get("is_reasonable", True))
 
         if not name or name.lower() in UNKNOWN_ITEM_NAMES:
-            warnings.append(f"Mat hang {index} co ten khong ro rang")
+            warnings.append(f"Mặt hàng {index} có tên chưa rõ ràng")
             penalty += 8
 
         if quantity <= 0:
-            warnings.append(f"Mat hang {index} co so luong khong hop le")
+            warnings.append(f"Mặt hàng {index} có số lượng không hợp lệ")
             penalty += 8
             is_structurally_valid = False
 
         if unit_price <= 0:
-            warnings.append(f"Mat hang {index} co don gia khong hop le")
+            warnings.append(f"Mặt hàng {index} có đơn giá không hợp lệ")
             penalty += 8
             is_structurally_valid = False
 
         inferred_total = quantity * unit_price
         if total_price <= 0 and inferred_total > 0:
             total_price = inferred_total
-            warnings.append(f"Mat hang {index} thieu thanh tien, da noi suy tu so luong x don gia")
+            warnings.append(
+                f"Mặt hàng {index} thiếu thành tiền, hệ thống đã nội suy từ số lượng x đơn giá"
+            )
             penalty += 3
         elif total_price > 0:
             item_tolerance = max(2000.0, inferred_total * 0.05)
             if inferred_total > 0 and abs(inferred_total - total_price) > item_tolerance:
-                warnings.append(f"Mat hang {index} co sai lech giua thanh tien va so luong x don gia")
+                warnings.append(
+                    f"Mặt hàng {index} có sai lệch giữa thành tiền và phép tính số lượng x đơn giá"
+                )
                 penalty += 6
                 is_structurally_valid = False
 
@@ -137,7 +141,7 @@ def validate_bill_result(result: Dict[str, Any]) -> BillValidationResult:
     detected_total_gap = abs(computed_items_total - total_amount)
     invoice_tolerance = max(3000.0, total_amount * 0.05)
     if total_amount > 0 and computed_items_total > 0 and detected_total_gap > invoice_tolerance:
-        warnings.append("Tong tien hoa don lech dang ke so voi tong cac mat hang")
+        warnings.append("Tổng tiền hóa đơn lệch đáng kể so với tổng các mặt hàng")
         penalty += 15
         is_structurally_valid = False
 

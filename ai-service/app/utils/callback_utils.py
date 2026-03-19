@@ -41,7 +41,9 @@ def build_callback_urls(
     if configured.startswith("http://") or configured.startswith("https://"):
         ordered_paths: Iterable[str] = [configured, gateway, direct]
     elif looks_like_gateway(base_url):
-        ordered_paths = [gateway, configured, direct]
+        ordered_paths = [gateway]
+        if configured and configured != direct:
+            ordered_paths = [gateway, configured]
     else:
         ordered_paths = [direct, configured, gateway]
 

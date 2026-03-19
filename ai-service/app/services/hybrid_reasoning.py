@@ -75,6 +75,22 @@ class HybridReasoningService:
             "high": 3,
         }.get((risk_level or "none").lower(), 0)
 
+    def _format_decision_label(self, decision: str) -> str:
+        return {
+            "VERIFIED": "Đạt yêu cầu",
+            "NEEDS_REVIEW": "Cần xem xét thêm",
+            "SUSPICIOUS": "Đáng ngờ",
+        }.get((decision or "").upper(), decision or "Không rõ")
+
+    def _format_duplicate_risk_label(self, risk_level: str) -> str:
+        return {
+            "none": "không có",
+            "low": "thấp",
+            "unknown": "chưa rõ",
+            "medium": "trung bình",
+            "high": "cao",
+        }.get((risk_level or "unknown").lower(), risk_level or "chưa rõ")
+
     def _build_local_duplicate_result(
         self,
         perceptual_hash: str,
@@ -315,7 +331,8 @@ class HybridReasoningService:
         total_amount = 0.0
         price_warnings: List[str] = []
         validation_warnings: List[str] = []
-        all_valid = True
+        campaign_goal_supported: bool | None = None
+        bill_structurally_valid = True
         all_reasoning: List[str] = []
         total_score = 0
 
@@ -346,22 +363,27 @@ class HybridReasoningService:
                 price_warnings.extend(result.get("price_warnings", []))
                 validation_warnings.extend(validation.validation_warnings)
 
-                if not result.get("serves_campaign_goal", True):
-                    all_valid = False
+                campaign_goal_result = result.get("serves_campaign_goal")
+                if campaign_goal_result is False:
+                    campaign_goal_supported = False
+                elif campaign_goal_result is True and campaign_goal_supported is None:
+                    campaign_goal_supported = True
                 if not validation.is_structurally_valid:
-                    all_valid = False
+                    bill_structurally_valid = False
 
                 all_reasoning.append(
-                    f"Hoa don {index + 1}: {result.get('reasoning', 'Khong co phan tich')}"
+                    f"Hóa đơn {index + 1}: {result.get('reasoning', 'Không có phân tích chi tiết')}"
                 )
                 if validation.validation_warnings:
                     all_reasoning.append(
-                        f"Hoa don {index + 1} - validator: {' | '.join(validation.validation_warnings)}"
+                        f"Hóa đơn {index + 1} - kiểm tra cấu trúc: {' | '.join(validation.validation_warnings)}"
                     )
                 total_score += validation.adjusted_trust_score
             except Exception as exc:
                 logger.error("Failed to analyze bill image %s (%s): %s", index, url, exc)
-                all_reasoning.append(f"Hoa don {index + 1}: Loi phan tich - {exc}")
+                bill_structurally_valid = False
+                validation_warnings.append(f"Hóa đơn {index + 1}: Lỗi phân tích hóa đơn")
+                all_reasoning.append(f"Hóa đơn {index + 1}: Lỗi phân tích - {exc}")
 
         avg_score = total_score // len(image_urls) if image_urls else 0
         return GeminiAnalysisResult(
@@ -369,7 +391,8 @@ class HybridReasoningService:
             items=all_items,
             price_warnings=price_warnings,
             validation_warnings=validation_warnings,
-            serves_campaign_goal=all_valid,
+            serves_campaign_goal=campaign_goal_supported,
+            bill_structurally_valid=bill_structurally_valid,
             reasoning="\n".join(all_reasoning),
             trust_score=avg_score,
         )
@@ -399,13 +422,13 @@ class HybridReasoningService:
         )
 
         summary_parts = [
-            f"[Rubric] {breakdown.rubric_version}",
-            f"[Decision] {breakdown.decision}",
-            f"Hoa don: tong {gemini_result.total_amount:,.0f}d, {len(gemini_result.items)} muc",
-            f"Scene relevance: {clip_result.scene_relevance_score:.2f}",
-            f"Forensic score: {clip_result.forensic_score}/100",
-            f"Scene support: {scene_score}/100",
-            f"Bill score: {breakdown.bill_score}/100",
+            f"[Bộ quy tắc] {breakdown.rubric_version}",
+            f"[Kết luận] {self._format_decision_label(breakdown.decision)} ({breakdown.decision})",
+            f"Tóm tắt hóa đơn: tổng {gemini_result.total_amount:,.0f}đ, {len(gemini_result.items)} mặt hàng",
+            f"Mức liên quan của ảnh hiện trường: {clip_result.scene_relevance_score:.2f}",
+            f"Điểm kiểm tra ảnh hiện trường: {clip_result.forensic_score}/100",
+            f"Điểm hỗ trợ từ ảnh hiện trường: {scene_score}/100",
+            f"Điểm đánh giá hóa đơn: {breakdown.bill_score}/100",
         ]
 
         if duplicate_risk_level != "none":
@@ -413,36 +436,41 @@ class HybridReasoningService:
                 detail.match_type for detail in clip_result.duplicate_details if detail.match_type
             )
             summary_parts.append(
-                f"CANH BAO: Duplicate risk {duplicate_risk_level} ({duplicate_types or 'unknown'})"
+                f"Cảnh báo: phát hiện nguy cơ ảnh trùng lặp ở mức {self._format_duplicate_risk_label(duplicate_risk_level)}"
+                f" ({duplicate_types or 'unknown'})"
             )
 
         if gemini_result.price_warnings:
             summary_parts.append(
-                f"CANH BAO: {len(gemini_result.price_warnings)} don gia bat thuong"
+                f"Cảnh báo: có {len(gemini_result.price_warnings)} dấu hiệu bất thường về đơn giá trên hóa đơn"
             )
 
         if gemini_result.validation_warnings:
             summary_parts.append(
-                f"CANH BAO: {len(gemini_result.validation_warnings)} canh bao validator bill"
+                f"Cảnh báo: có {len(gemini_result.validation_warnings)} vấn đề khi kiểm tra cấu trúc hóa đơn"
             )
 
         if clip_result.forensic_warnings:
             summary_parts.append(
-                f"CANH BAO: {len(clip_result.forensic_warnings)} canh bao forensic scene"
+                f"Cảnh báo: có {len(clip_result.forensic_warnings)} lưu ý khi phân tích ảnh hiện trường"
             )
 
-        if gemini_result.serves_campaign_goal:
-            summary_parts.append("Phu hop muc tieu chien dich")
+        if gemini_result.serves_campaign_goal is True:
+            summary_parts.append("Đánh giá nghiệp vụ: hóa đơn phù hợp với mục tiêu chiến dịch")
+        elif gemini_result.serves_campaign_goal is False:
+            summary_parts.append("Đánh giá nghiệp vụ: hóa đơn không phù hợp với mục tiêu chiến dịch")
+        elif gemini_result.bill_structurally_valid:
+            summary_parts.append("Đánh giá nghiệp vụ: chưa đủ dữ liệu để kết luận mức độ phù hợp với mục tiêu chiến dịch")
         else:
-            summary_parts.append("Khong phu hop muc tieu chien dich")
+            summary_parts.append("Đánh giá nghiệp vụ: hóa đơn chưa đủ dữ liệu để kết luận mức độ phù hợp")
 
         summary_parts.append(
-            f"[Breakdown] bonus={breakdown.clean_bonus}, "
-            f"duplicate_penalty={breakdown.duplicate_penalty}, "
-            f"bill_warning_penalty={breakdown.bill_warning_penalty}, "
-            f"forensic_warning_penalty={breakdown.forensic_warning_penalty}"
+            f"[Chi tiết điểm] điểm cộng={breakdown.clean_bonus}, "
+            f"trừ do ảnh trùng lặp={breakdown.duplicate_penalty}, "
+            f"trừ do cảnh báo hóa đơn={breakdown.bill_warning_penalty}, "
+            f"trừ do cảnh báo ảnh hiện trường={breakdown.forensic_warning_penalty}"
         )
-        summary_parts.append(f"Diem tin cay: {breakdown.final_score}/100")
+        summary_parts.append(f"Điểm tin cậy cuối cùng: {breakdown.final_score}/100")
 
         return (
             breakdown.final_score,
