@@ -12,7 +12,7 @@ spring:
     jdbc-url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/transaction
     driver-class-name: org.postgresql.Driver
     username: postgres
-    password: ${POSTGRES_PW}
+    password: ${POSTGRES_PASSWORD}
   
   jpa:
     hibernate:
