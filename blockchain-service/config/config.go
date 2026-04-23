@@ -155,7 +155,7 @@ func setDefaults() {
 	viper.SetDefault("ENV", "development")
 	viper.SetDefault("SERVICE_NAME", "blockchain-service")
 	viper.SetDefault("SERVICE_VERSION", "1.0.0")
-	viper.SetDefault("SERVICE_PORT", "8085")
+	viper.SetDefault("SERVICE_PORT", "8083")
 	viper.SetDefault("SERVICE_HOST", "0.0.0.0")
 
 	// Eureka defaults
